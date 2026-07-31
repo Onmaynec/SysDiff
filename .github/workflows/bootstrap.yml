@@ -37,3 +37,5 @@ jobs:
           git add -A
           git commit -m "Создать SysDiff MVP" || exit 0
           git push origin HEAD:${{ github.head_ref || github.ref_name }}
+
+# Retry after verifying every archive part SHA.
