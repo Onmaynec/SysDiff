@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Onmaynec/SysDiff/schemas/snapshot.schema.json",
+  "title": "Экспорт снимка SysDiff",
+  "type": "object",
+  "required": ["id", "name", "createdAtUtc", "schemaVersion", "status", "artifacts"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "name": { "type": "string", "minLength": 1 },
+    "createdAtUtc": { "type": "string", "format": "date-time" },
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "status": {
+      "enum": ["InProgress", "Completed", "Partial", "Failed", "Cancelled", "Corrupted"]
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["providerId", "artifactType", "identity", "displayName"],
+        "properties": {
+          "providerId": { "type": "string" },
+          "artifactType": { "type": "string" },
+          "identity": { "type": "string" },
+          "displayName": { "type": "string" },
+          "properties": { "type": "object" },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

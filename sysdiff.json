@@ -1,0 +1,29 @@
+{
+  "$schema": "./schemas/config.schema.json",
+  "schemaVersion": 1,
+  "storage": {
+    "dataDirectory": "%LocalAppData%\\SysDiff",
+    "retentionDays": 90,
+    "maximumDatabaseSizeMb": 4096
+  },
+  "capture": {
+    "defaultProfile": "standard",
+    "parallelProviders": 1,
+    "continueOnProviderError": true
+  },
+  "comparison": {
+    "noiseMode": "Balanced",
+    "defaultMinimumSeverity": "Info"
+  },
+  "privacy": {
+    "storeMachineName": false,
+    "storeUserName": false,
+    "redactUserProfilePath": true,
+    "redactSecrets": true
+  },
+  "ui": {
+    "language": "ru",
+    "animations": false,
+    "theme": "dark"
+  }
+}

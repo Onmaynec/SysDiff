@@ -1,0 +1,45 @@
+name: 🐞 Сообщить об ошибке
+description: Помогите воспроизвести и исправить проблему
+title: "[Ошибка]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо за отчёт! Не публикуйте секреты, персональные данные и полный экспорт реестра.
+  - type: input
+    id: version
+    attributes:
+      label: Версия SysDiff
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Версия Windows
+      placeholder: Windows 11 24H2, build ...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Шаги воспроизведения
+      placeholder: |
+        1. Запустил ...
+        2. Выполнил ...
+        3. Получил ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ожидаемое поведение
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Безопасный фрагмент журнала
+      description: Удалите имена пользователей, пути профиля, токены и другие чувствительные данные.
+      render: text

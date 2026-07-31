@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Onmaynec/SysDiff/schemas/config.schema.json",
+  "title": "Конфигурация SysDiff",
+  "type": "object",
+  "required": ["schemaVersion", "storage", "capture", "comparison", "privacy", "ui"],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "storage": {
+      "type": "object",
+      "required": ["dataDirectory", "retentionDays", "maximumDatabaseSizeMb"],
+      "properties": {
+        "dataDirectory": { "type": "string", "minLength": 1 },
+        "retentionDays": { "type": "integer", "minimum": 1 },
+        "maximumDatabaseSizeMb": { "type": "integer", "minimum": 64 }
+      },
+      "additionalProperties": false
+    },
+    "capture": {
+      "type": "object",
+      "required": ["defaultProfile", "parallelProviders", "continueOnProviderError"],
+      "properties": {
+        "defaultProfile": { "enum": ["minimal", "standard", "full"] },
+        "parallelProviders": { "type": "integer", "minimum": 1, "maximum": 16 },
+        "continueOnProviderError": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "comparison": {
+      "type": "object",
+      "required": ["noiseMode", "defaultMinimumSeverity"],
+      "properties": {
+        "noiseMode": { "enum": ["Raw", "Balanced", "Strict"] },
+        "defaultMinimumSeverity": {
+          "enum": ["Info", "Low", "Medium", "High", "Critical"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "privacy": {
+      "type": "object",
+      "required": [
+        "storeMachineName",
+        "storeUserName",
+        "redactUserProfilePath",
+        "redactSecrets"
+      ],
+      "properties": {
+        "storeMachineName": { "type": "boolean" },
+        "storeUserName": { "type": "boolean" },
+        "redactUserProfilePath": { "type": "boolean" },
+        "redactSecrets": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "ui": {
+      "type": "object",
+      "required": ["language", "animations", "theme"],
+      "properties": {
+        "language": { "enum": ["auto", "ru", "en"] },
+        "animations": { "type": "boolean" },
+        "theme": { "enum": ["dark", "light", "system"] }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

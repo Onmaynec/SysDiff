@@ -1,0 +1,38 @@
+{
+  "$schema": "../../schemas/profile.schema.json",
+  "name": "installer-audit",
+  "description": "Профиль для проверки обычного Windows-установщика.",
+  "providers": {
+    "filesystem": {
+      "enabled": true,
+      "roots": [
+        "%ProgramFiles%",
+        "%ProgramFiles(x86)%",
+        "%ProgramData%",
+        "%AppData%",
+        "%LocalAppData%"
+      ],
+      "exclude": [
+        "**\\Cache\\**",
+        "**\\Logs\\**",
+        "**\\Temp\\**"
+      ],
+      "hashMode": "Smart",
+      "maximumDepth": 10,
+      "maximumArtifacts": 500000
+    },
+    "registry": {
+      "enabled": true,
+      "roots": [
+        "HKCU\\Software",
+        "HKLM64\\Software",
+        "HKLM32\\Software"
+      ],
+      "maximumDepth": 8
+    },
+    "services": { "enabled": true },
+    "scheduled-tasks": { "enabled": true },
+    "startup": { "enabled": true },
+    "environment": { "enabled": true }
+  }
+}

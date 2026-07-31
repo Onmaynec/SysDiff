@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <RootNamespace>SysDiff.Cli</RootNamespace>
+    <AssemblyName>sysdiff</AssemblyName>
+    <Version>0.1.0</Version>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SysDiff.Domain\SysDiff.Domain.csproj" />
+    <ProjectReference Include="..\SysDiff.Core\SysDiff.Core.csproj" />
+    <ProjectReference Include="..\SysDiff.Storage\SysDiff.Storage.csproj" />
+    <ProjectReference Include="..\SysDiff.Providers\SysDiff.Providers.csproj" />
+    <ProjectReference Include="..\SysDiff.Reporting\SysDiff.Reporting.csproj" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\sysdiff.json" Link="sysdiff.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\samples\profiles\installer-audit.json" Link="profiles\installer-audit.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

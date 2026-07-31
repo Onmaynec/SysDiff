@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <RootNamespace>SysDiff.Providers</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SysDiff.Domain\SysDiff.Domain.csproj" />
+    <ProjectReference Include="..\SysDiff.Core\SysDiff.Core.csproj" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" />
+  </ItemGroup>
+</Project>
