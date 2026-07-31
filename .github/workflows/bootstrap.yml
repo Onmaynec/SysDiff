@@ -29,6 +29,12 @@ jobs:
           find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
           tar -xzf /tmp/project.tar.gz
 
+          # GITHUB_TOKEN cannot create workflow files. Keep this workflow
+          # byte-for-byte unchanged; final CI workflows are added by GitHub App.
+          rm -rf .github/workflows
+          mkdir -p .github/workflows
+          git show HEAD:.github/workflows/bootstrap.yml > .github/workflows/bootstrap.yml
+
       - name: Commit project
         shell: bash
         run: |
@@ -37,5 +43,3 @@ jobs:
           git add -A
           git commit -m "Создать SysDiff MVP" || exit 0
           git push origin HEAD:${{ github.head_ref || github.ref_name }}
-
-# Retry after verifying every archive part SHA.
