@@ -1,0 +1,49 @@
+name: Сборка
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Получить код
+        uses: actions/checkout@v4
+
+      - name: Установить .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Восстановить зависимости
+        run: dotnet restore SysDiff.sln
+
+      - name: Собрать
+        run: dotnet build SysDiff.sln --configuration Release --no-restore
+
+      - name: Опубликовать win-x64
+        run: >
+          dotnet publish src/SysDiff.Cli/SysDiff.Cli.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained true
+          --output artifacts/publish/win-x64
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+
+      - name: Smoke-тест
+        shell: pwsh
+        run: ./scripts/smoke-test.ps1
+
+      - name: Сохранить артефакт
+        uses: actions/upload-artifact@v4
+        with:
+          name: SysDiff-win-x64
+          path: artifacts/publish/win-x64

@@ -1,0 +1,51 @@
+name: Тесты
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Получить код
+        uses: actions/checkout@v4
+
+      - name: Установить .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Восстановить зависимости
+        run: dotnet restore SysDiff.sln
+
+      - name: Запустить тесты
+        run: >
+          dotnet test SysDiff.sln
+          --configuration Release
+          --no-restore
+          --collect:"XPlat Code Coverage"
+          --logger trx
+          --results-directory TestResults
+
+      - name: Проверить JSON
+        shell: pwsh
+        run: |
+          Get-ChildItem schemas/*.json, samples/profiles/*.json, sysdiff.json |
+            ForEach-Object {
+              $null = Get-Content $_.FullName -Raw | ConvertFrom-Json
+              Write-Host "OK: $($_.FullName)"
+            }
+
+      - name: Сохранить результаты
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults
