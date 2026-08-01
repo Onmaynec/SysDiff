@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using SysDiff.Domain;
 
 namespace SysDiff.Cli;
@@ -5,9 +6,21 @@ namespace SysDiff.Cli;
 internal sealed partial class TerminalRenderer
 {
     private readonly object _consoleLock = new();
+    private readonly TerminalMotionPolicy _motion;
     private int _spinnerIndex;
+    private long _lastProgressRenderTimestamp;
 
-    public IDisposable EnterApplicationMode() => new ConsoleSession();
+    public TerminalRenderer()
+    {
+        _motion = TerminalMotionPolicy.Detect();
+    }
+
+    public IDisposable EnterApplicationMode()
+    {
+        var session = new ConsoleSession();
+        PlayBootSequence();
+        return session;
+    }
 
     public T? Select<T>(
         string title,
@@ -52,19 +65,23 @@ internal sealed partial class TerminalRenderer
         while (true)
         {
             Clear();
-            int width = Math.Min(110, TerminalCapabilities.GetSafeWindowWidth());
-            StartPanel(title, width, ConsoleColor.Cyan);
-            WriteWrapped(prompt, width, ConsoleColor.Gray);
+            int width = Math.Min(112, TerminalCapabilities.GetSafeWindowWidth());
+            StartPanel($"INPUT NODE // {title}", width, CyberTheme.Accent);
+            WriteLine("[ CHANNEL:KEYBOARD ]  [ MODE:TEXT ]", width, CyberTheme.Muted);
+            Separator(width);
+            WriteWrapped(prompt, width, CyberTheme.Text);
             if (!string.IsNullOrWhiteSpace(defaultValue))
             {
-                WriteWrapped($"По умолчанию: {defaultValue}", width, ConsoleColor.DarkGray);
+                WriteWrapped($"DEFAULT > {defaultValue}", width, CyberTheme.Muted);
             }
 
             Separator(width);
-            WriteLine("Введите значение и нажмите Enter", width, ConsoleColor.DarkGray, centered: true);
+            WriteLine("Введите значение и нажмите Enter · Esc не используется в режиме ввода", width, CyberTheme.Muted, centered: true);
             EndPanel(width);
             SetCursorVisible(true);
-            Console.Write("> ");
+            SetColor(CyberTheme.Accent);
+            Console.Write("SYS> ");
+            ResetColor();
             string? value = Console.ReadLine();
             SetCursorVisible(false);
 
@@ -80,7 +97,7 @@ internal sealed partial class TerminalRenderer
                     return string.Empty;
                 }
 
-                ShowMessage("Проверка ввода", "Значение не может быть пустым.", MessageKind.Warning);
+                ShowMessage("INPUT VALIDATION", "Значение не может быть пустым.", MessageKind.Warning);
                 continue;
             }
 
@@ -107,7 +124,7 @@ internal sealed partial class TerminalRenderer
             }
 
             ShowMessage(
-                "Проверка ввода",
+                "INPUT VALIDATION",
                 $"Введите целое число от {minimum:N0} до {maximum:N0}.",
                 MessageKind.Warning);
         }
@@ -115,14 +132,14 @@ internal sealed partial class TerminalRenderer
 
     public bool Confirm(string title, string question, bool defaultValue = false)
     {
-        string yes = "Да";
-        string no = "Нет";
+        string yes = "AUTHORIZE";
+        string no = "ABORT";
         string[] choices = defaultValue ? [yes, no] : [no, yes];
         string? answer = Select(
-            title,
+            $"CONFIRMATION // {title}",
             question,
             choices,
-            value => value,
+            value => value == yes ? "[ YES ] AUTHORIZE ACTION" : "[ NO  ] ABORT AND RETURN",
             allowBack: true);
         return string.Equals(answer, yes, StringComparison.Ordinal);
     }
@@ -136,20 +153,29 @@ internal sealed partial class TerminalRenderer
         lock (_consoleLock)
         {
             Clear();
-            int width = Math.Min(110, TerminalCapabilities.GetSafeWindowWidth());
+            int width = Math.Min(112, TerminalCapabilities.GetSafeWindowWidth());
             ConsoleColor color = kind switch
             {
-                MessageKind.Success => ConsoleColor.Green,
-                MessageKind.Warning => ConsoleColor.Yellow,
-                MessageKind.Error => ConsoleColor.Red,
-                _ => ConsoleColor.Cyan
+                MessageKind.Success => CyberTheme.Success,
+                MessageKind.Warning => CyberTheme.Warning,
+                MessageKind.Error => CyberTheme.Error,
+                _ => CyberTheme.Secondary
             };
-            StartPanel(title, width, color);
-            WriteWrapped(message, width, ConsoleColor.Gray);
+            string marker = kind switch
+            {
+                MessageKind.Success => "[ OK ]",
+                MessageKind.Warning => "[ !! ]",
+                MessageKind.Error => "[ XX ]",
+                _ => "[ INFO ]"
+            };
+            StartPanel($"{marker} {title}", width, color);
+            WriteLine($"TIMESTAMP {DateTimeOffset.Now:HH:mm:ss} · NODE {Environment.MachineName}", width, CyberTheme.Muted);
+            Separator(width, color);
+            WriteWrapped(message, width, CyberTheme.Text);
             if (pause)
             {
                 Separator(width, color);
-                WriteLine("Нажмите любую клавишу", width, ConsoleColor.DarkGray, centered: true);
+                WriteLine("PRESS ANY KEY TO RETURN TO CONTROL NODE", width, CyberTheme.Muted, centered: true);
             }
             EndPanel(width, color);
         }
@@ -168,16 +194,17 @@ internal sealed partial class TerminalRenderer
 
     public void ShowSnapshotProgress(SnapshotProgress progress)
     {
+        long timestamp = Stopwatch.GetTimestamp();
+        double elapsedMilliseconds = (timestamp - _lastProgressRenderTimestamp) * 1000d / Stopwatch.Frequency;
+        if (_lastProgressRenderTimestamp != 0 && elapsedMilliseconds < 60d)
+        {
+            return;
+        }
+        _lastProgressRenderTimestamp = timestamp;
+
         lock (_consoleLock)
         {
-            int width = Math.Min(120, TerminalCapabilities.GetSafeWindowWidth());
-            string current = string.IsNullOrWhiteSpace(progress.CurrentItem)
-                ? string.Empty
-                : $" · {FitRaw(progress.CurrentItem, Math.Max(12, width - 42))}";
-            WriteTransientLine(
-                $"{SpinnerFrame()} [{progress.ProviderId}] {progress.Processed:N0} объектов{current}",
-                ConsoleColor.Cyan,
-                width);
+            RenderProviderStream(progress, _spinnerIndex++);
         }
     }
 
@@ -188,25 +215,51 @@ internal sealed partial class TerminalRenderer
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(operation);
-        Clear();
-        int width = Math.Min(110, TerminalCapabilities.GetSafeWindowWidth());
-        StartPanel(title, width, ConsoleColor.Cyan);
-        WriteWrapped(message, width, ConsoleColor.Gray);
-        EndPanel(width);
-
+        var stopwatch = Stopwatch.StartNew();
         Task<T> task = operation();
-        while (!task.IsCompleted)
+        int tick = 0;
+
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            while (!task.IsCompleted)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                lock (_consoleLock)
+                {
+                    RenderActionConsole(title, message, CyberStageState.Running, stopwatch.Elapsed, tick);
+                }
+                int delay = _motion.AnimationsEnabled ? Math.Max(30, _motion.FrameDelayMilliseconds) : 80;
+                await Task.WhenAny(task, Task.Delay(delay, cancellationToken));
+                tick++;
+            }
+
+            T result = await task;
             lock (_consoleLock)
             {
-                WriteTransientLine($"{SpinnerFrame()} {message}", ConsoleColor.Cyan, width);
+                RenderActionConsole(title, message, CyberStageState.Completed, stopwatch.Elapsed, tick);
             }
-            await Task.WhenAny(task, Task.Delay(80, cancellationToken));
+            if (_motion.AnimationsEnabled)
+            {
+                await Task.Delay(140, CancellationToken.None);
+            }
+            return result;
         }
-
-        Console.WriteLine();
-        return await task;
+        catch (OperationCanceledException)
+        {
+            lock (_consoleLock)
+            {
+                RenderActionConsole(title, message, CyberStageState.Cancelled, stopwatch.Elapsed, tick);
+            }
+            throw;
+        }
+        catch
+        {
+            lock (_consoleLock)
+            {
+                RenderActionConsole(title, message, CyberStageState.Failed, stopwatch.Elapsed, tick);
+            }
+            throw;
+        }
     }
 
     public async Task RunSpinnerAsync(
@@ -228,51 +281,181 @@ internal sealed partial class TerminalRenderer
 
     public void RenderSmokeFrame()
     {
-        const int width = 100;
-        Console.WriteLine(new string('=', width));
-        Console.WriteLine("SYSDIFF CONTROL CENTER 0.4.0");
-        Console.WriteLine("Snapshot Center | Comparison Lab | Watch Session | Live Monitor | Diagnostics");
-        Console.WriteLine("ARROWS ENTER ESC Q");
-        Console.WriteLine(new string('=', width));
+        const int width = 104;
+        Console.WriteLine($"┏{new string('━', width - 2)}┓");
+        Console.WriteLine("┃                          SYSDIFF CYBER CONSOLE 0.5.0                           ┃");
+        Console.WriteLine("┃ [ NODE:ONLINE ] [ ROOT:ADMIN ] [ MOTION:SAFE ] [ CHANNEL:LOCAL ]             ┃");
+        Console.WriteLine("┃ [01] SNAPSHOT NODE   [02] DIFF LAB   [03] WATCH OPS   [04] LIVE SIGNAL       ┃");
+        Console.WriteLine("┃ ACTION CONSOLE // ████████████████░░░░ // PROVIDER STREAM // COMMAND DECK    ┃");
+        Console.WriteLine("┃ KEYS: 1-9 · P SNAPSHOT · C COMPARE · W WATCH · L LIVE · D DIAGNOSTICS · Q    ┃");
+        Console.WriteLine($"┗{new string('━', width - 2)}┛");
+    }
+
+    private void PlayBootSequence()
+    {
+        if (!_motion.AnimationsEnabled)
+        {
+            return;
+        }
+
+        string[] steps =
+        [
+            "NEGOTIATING TERMINAL CHANNEL",
+            "VERIFYING LOCAL STORAGE",
+            "INDEXING SNAPSHOT PROVIDERS",
+            "ARMING COMPARISON ENGINE",
+            "SYNCING LIVE MONITORS",
+            "CONTROL NODE ONLINE"
+        ];
+
+        for (int completed = 0; completed < steps.Length; completed++)
+        {
+            for (int frame = 0; frame < 3; frame++)
+            {
+                if (TryConsumeSkipKey())
+                {
+                    return;
+                }
+                RenderBootFrame(steps, completed, frame);
+                Thread.Sleep(_motion.FrameDelayMilliseconds);
+            }
+        }
+    }
+
+    private bool TryConsumeSkipKey()
+    {
+        try
+        {
+            if (!Console.KeyAvailable)
+            {
+                return false;
+            }
+            Console.ReadKey(intercept: true);
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+    }
+
+    private void RenderActionConsole(
+        string title,
+        string message,
+        CyberStageState state,
+        TimeSpan elapsed,
+        int tick)
+    {
+        Clear();
+        int width = Math.Min(118, TerminalCapabilities.GetSafeWindowWidth());
+        ConsoleColor stateColor = CyberTheme.StageColor(state);
+        StartPanel($"ACTION CONSOLE // {title.ToUpperInvariant()}", width, stateColor);
+        WriteLine(
+            $"{CyberTheme.NodeBadge(true)} [ ELAPSED:{elapsed:mm\\:ss\.ff} ] [ PID:{Environment.ProcessId} ]",
+            width,
+            CyberTheme.Muted);
+        Separator(width, stateColor);
+        WriteStage("CONTROL CHANNEL", CyberStageState.Completed, width);
+        WriteStage(message, state, width);
+        WriteStage("COMMIT RESULT", state == CyberStageState.Completed ? CyberStageState.Completed : CyberStageState.Queued, width);
+        Separator(width, stateColor);
+        double progress = state switch
+        {
+            CyberStageState.Completed => 1d,
+            CyberStageState.Failed or CyberStageState.Cancelled => 0.72d,
+            _ => (Math.Abs(tick) % 80) / 80d
+        };
+        string bar = CyberAnimation.BuildProgressBar(progress, Math.Max(12, width - 28), tick);
+        WriteLine($"STREAM {bar} {(int)(progress * 100),3}%", width, stateColor);
+        WriteLine($"SCAN   {CyberAnimation.BuildScanner(tick, Math.Max(12, width - 11))}", width, CyberTheme.Secondary);
+        WriteLine(
+            state switch
+            {
+                CyberStageState.Completed => "RESULT > OPERATION COMMITTED SUCCESSFULLY",
+                CyberStageState.Failed => "RESULT > OPERATION FAILED · ERROR CHANNEL OPEN",
+                CyberStageState.Cancelled => "RESULT > OPERATION CANCELLED BY OPERATOR",
+                _ => $"TRACE  > {CyberAnimation.Spinner(tick)} {message}"
+            },
+            width,
+            stateColor);
+        Separator(width, stateColor);
+        WriteLine("CTRL+C ABORT · OUTPUT REMAINS LOCAL · NO SYSTEM COMMANDS EXECUTED FROM CAPTURED DATA", width, CyberTheme.Muted, centered: true);
+        EndPanel(width, stateColor);
+    }
+
+    private void RenderProviderStream(SnapshotProgress progress, int tick)
+    {
+        Clear();
+        int width = Math.Min(122, TerminalCapabilities.GetSafeWindowWidth());
+        StartPanel("PROVIDER STREAM // SNAPSHOT CAPTURE", width, CyberTheme.Accent);
+        WriteLine($"{CyberTheme.NodeBadge(true)} [ PROFILE:ACTIVE ] [ OBJECTS:{progress.Processed:N0} ]", width, CyberTheme.Muted);
+        Separator(width);
+        WriteStage("SNAPSHOT TRANSACTION", CyberStageState.Completed, width);
+        WriteStage($"PROVIDER {progress.ProviderId}", CyberStageState.Running, width);
+        WriteStage("SQLITE COMMIT", CyberStageState.Queued, width);
+        Separator(width);
+        string bar = CyberAnimation.BuildProgressBar((Math.Abs(tick) % 100) / 100d, Math.Max(12, width - 28), tick);
+        WriteLine($"CAPTURE {bar}", width, CyberTheme.Accent);
+        WriteLine($"MODULE  > {progress.Message}", width, CyberTheme.Secondary);
+        WriteWrapped(
+            string.IsNullOrWhiteSpace(progress.CurrentItem)
+                ? "TRACE   > waiting for provider data"
+                : $"TRACE   > {progress.CurrentItem}",
+            width,
+            CyberTheme.Text);
+        Separator(width);
+        WriteLine("LIVE STREAM · CTRL+C CANCEL · ACCESS ERRORS ARE ISOLATED PER PROVIDER", width, CyberTheme.Muted, centered: true);
+        EndPanel(width);
+    }
+
+    private void WriteStage(string name, CyberStageState state, int width)
+    {
+        WriteLine(
+            $"{CyberTheme.StageMarker(state)} {FitRaw(name.ToUpperInvariant(), Math.Max(12, width - 18))}",
+            width,
+            CyberTheme.StageColor(state));
     }
 
     private char SpinnerFrame()
     {
-        const string frames = "|/-\\";
-        char value = frames[_spinnerIndex % frames.Length];
+        char value = CyberAnimation.Spinner(_spinnerIndex);
         _spinnerIndex++;
         return value;
     }
 
-    private static void StartPanel(string title, int width, ConsoleColor color)
+    private void StartPanel(string title, int width, ConsoleColor color)
     {
         TopBorder(width, color);
         WriteLine(title, width, color, centered: true);
         Separator(width, color);
     }
 
-    private static void TopBorder(int width, ConsoleColor color)
+    private void TopBorder(int width, ConsoleColor color)
     {
         SetColor(color);
-        Console.WriteLine($"╭{new string('─', Math.Max(0, width - 2))}╮");
-        Console.ResetColor();
+        Console.WriteLine($"┏{new string('━', Math.Max(0, width - 2))}┓");
+        ResetColor();
     }
 
-    private static void EndPanel(int width, ConsoleColor color = ConsoleColor.DarkCyan)
+    private void EndPanel(int width, ConsoleColor? color = null)
     {
-        SetColor(color);
-        Console.WriteLine($"╰{new string('─', Math.Max(0, width - 2))}╯");
-        Console.ResetColor();
+        SetColor(color ?? CyberTheme.Border);
+        Console.WriteLine($"┗{new string('━', Math.Max(0, width - 2))}┛");
+        ResetColor();
     }
 
-    private static void Separator(int width, ConsoleColor color = ConsoleColor.DarkCyan)
+    private void Separator(int width, ConsoleColor? color = null)
     {
-        SetColor(color);
-        Console.WriteLine($"├{new string('─', Math.Max(0, width - 2))}┤");
-        Console.ResetColor();
+        SetColor(color ?? CyberTheme.Border);
+        Console.WriteLine($"┣{new string('━', Math.Max(0, width - 2))}┫");
+        ResetColor();
     }
 
-    private static void WriteLine(
+    private void WriteLine(
         string text,
         int width,
         ConsoleColor color,
@@ -282,16 +465,16 @@ internal sealed partial class TerminalRenderer
         int innerWidth = Math.Max(1, width - 2);
         string raw = FitRaw(text, innerWidth);
         string content = centered ? Center(raw, innerWidth) : raw.PadRight(innerWidth);
-        SetColor(ConsoleColor.DarkCyan);
-        Console.Write('│');
+        SetColor(CyberTheme.Border);
+        Console.Write('┃');
         SetColor(color, background);
         Console.Write(content);
-        SetColor(ConsoleColor.DarkCyan);
-        Console.WriteLine('│');
-        Console.ResetColor();
+        SetColor(CyberTheme.Border);
+        Console.WriteLine('┃');
+        ResetColor();
     }
 
-    private static void WriteWrapped(string text, int width, ConsoleColor color)
+    private void WriteWrapped(string text, int width, ConsoleColor color)
     {
         int innerWidth = Math.Max(1, width - 4);
         foreach (string line in Wrap(text, innerWidth))
@@ -300,33 +483,33 @@ internal sealed partial class TerminalRenderer
         }
     }
 
-    private static void WriteKeyValue(
+    private void WriteKeyValue(
         string key,
         string value,
         int width,
-        ConsoleColor valueColor = ConsoleColor.Gray)
+        ConsoleColor? valueColor = null)
     {
         int keyWidth = Math.Min(24, Math.Max(12, width / 4));
         int valueWidth = Math.Max(8, width - keyWidth - 5);
-        SetColor(ConsoleColor.DarkCyan);
-        Console.Write('│');
-        SetColor(ConsoleColor.DarkGray);
+        SetColor(CyberTheme.Border);
+        Console.Write('┃');
+        SetColor(CyberTheme.Muted);
         Console.Write(Fit($" {key}", keyWidth));
-        SetColor(ConsoleColor.DarkCyan);
-        Console.Write('│');
-        SetColor(valueColor);
+        SetColor(CyberTheme.Border);
+        Console.Write('┃');
+        SetColor(valueColor ?? CyberTheme.Text);
         Console.Write(Fit(value, valueWidth));
-        SetColor(ConsoleColor.DarkCyan);
-        Console.WriteLine('│');
-        Console.ResetColor();
+        SetColor(CyberTheme.Border);
+        Console.WriteLine('┃');
+        ResetColor();
     }
 
-    private static void WriteTransientLine(string text, ConsoleColor color, int width)
+    private void WriteTransientLine(string text, ConsoleColor color, int width)
     {
         SetColor(color);
         Console.Write('\r');
         Console.Write(Fit(text, width));
-        Console.ResetColor();
+        ResetColor();
     }
 
     private static IEnumerable<string> Wrap(string value, int width)
@@ -375,8 +558,13 @@ internal sealed partial class TerminalRenderer
             : width == 1 ? "…" : sanitized[..(width - 1)] + "…";
     }
 
-    private static void SetColor(ConsoleColor foreground, ConsoleColor? background = null)
+    private void SetColor(ConsoleColor foreground, ConsoleColor? background = null)
     {
+        if (!_motion.ColorsEnabled)
+        {
+            return;
+        }
+
         try
         {
             Console.ForegroundColor = foreground;
@@ -387,11 +575,26 @@ internal sealed partial class TerminalRenderer
         }
     }
 
-    private static void Clear()
+    private void ResetColor()
     {
+        if (!_motion.ColorsEnabled)
+        {
+            return;
+        }
         try
         {
             Console.ResetColor();
+        }
+        catch (IOException)
+        {
+        }
+    }
+
+    private void Clear()
+    {
+        try
+        {
+            ResetColor();
             Console.Clear();
         }
         catch (IOException)
@@ -438,7 +641,7 @@ internal sealed partial class TerminalRenderer
             {
                 _cursorVisible = Console.CursorVisible;
                 Console.CursorVisible = false;
-                Console.Title = "SysDiff 0.4.0 · Terminal Control Center";
+                Console.Title = "SysDiff 0.5.0 · Cyber Console";
                 Console.Clear();
             }
             catch (IOException)
