@@ -15,18 +15,19 @@ internal sealed partial class TerminalRenderer
         lock (_consoleLock)
         {
             Clear();
-            int width = Math.Min(140, TerminalCapabilities.GetSafeWindowWidth());
-            int rows = Math.Max(5, TerminalCapabilities.GetSafeWindowHeight() - 15);
-            StartPanel("COMPARISON LAB · CHANGE EXPLORER", width, ConsoleColor.Cyan);
+            int width = Math.Min(142, TerminalCapabilities.GetSafeWindowWidth());
+            int rows = Math.Max(5, TerminalCapabilities.GetSafeWindowHeight() - 17);
+            StartPanel("DIFF LAB // CHANGE EXPLORER", width, CyberTheme.Accent);
             WriteLine(
-                $"Найдено {changes.Count:N0} · min {minimumSeverity} · sort {(severitySort ? "severity" : "provider")} · raw {(rawMode ? "on" : "off")} · search {query}",
+                $"[ RESULTS:{changes.Count:N0} ] [ MIN:{minimumSeverity.ToString().ToUpperInvariant()} ] [ SORT:{(severitySort ? "SEVERITY" : "PROVIDER")} ] [ RAW:{(rawMode ? "ON" : "OFF")} ]",
                 width,
-                ConsoleColor.DarkGray);
+                CyberTheme.Secondary);
+            WriteLine($"SEARCH VECTOR > {(string.IsNullOrWhiteSpace(query) ? "<EMPTY>" : query)}", width, CyberTheme.Muted);
             Separator(width);
 
             if (changes.Count == 0)
             {
-                WriteLine("Нет изменений для текущего фильтра.", width, ConsoleColor.Yellow, centered: true);
+                WriteLine("[--] NO CHANGES MATCH CURRENT FILTER VECTOR", width, CyberTheme.Warning, centered: true);
             }
             else
             {
@@ -38,30 +39,34 @@ internal sealed partial class TerminalRenderer
                     SystemChange change = changes[index];
                     bool selected = index == selectedIndex;
                     WriteLine(
-                        $"{(selected ? '▶' : ' ')} [{change.Severity,-8}] {change.ChangeType,-9} {change.DisplayName}",
+                        $"{(selected ? '▶' : ' ')} [{change.Severity,-8}] {ChangeMarker(change.ChangeType)} {change.ChangeType,-9} {change.ProviderId,-18} {change.DisplayName}",
                         width,
-                        selected ? ConsoleColor.Black : SeverityColor(change.Severity),
-                        background: selected ? ConsoleColor.Cyan : null);
+                        selected ? CyberTheme.SelectionForeground : SeverityColor(change.Severity),
+                        background: selected ? CyberTheme.SelectionBackground : null);
                 }
 
                 SystemChange active = changes[Math.Clamp(selectedIndex, 0, changes.Count - 1)];
                 Separator(width);
+                WriteLine(
+                    $"ACTIVE VECTOR > {active.Identity} · CONFIDENCE {active.Confidence:P0}",
+                    width,
+                    CyberTheme.Secondary);
                 WriteWrapped(active.Explanation, width, SeverityColor(active.Severity));
-                WriteWrapped(active.WhyThisMatters, width, ConsoleColor.Gray);
+                WriteWrapped(active.WhyThisMatters, width, CyberTheme.Text);
                 foreach (PropertyChange property in active.ChangedProperties.Take(3))
                 {
                     WriteWrapped(
-                        $"{property.Name}: {property.Before?.Value ?? "∅"} → {property.After?.Value ?? "∅"}",
+                        $"DELTA {property.Name}: {property.Before?.Value ?? "∅"} -> {property.After?.Value ?? "∅"}",
                         width,
-                        ConsoleColor.DarkGray);
+                        CyberTheme.Muted);
                 }
             }
 
             Separator(width);
             WriteLine(
-                "↑↓ выбор  / поиск  F severity  S сортировка  R raw  E экспорт  Esc назад",
+                "↑↓ VECTOR · / SEARCH · F SEVERITY · S SORT · R RAW · E EXPORT · ESC RETURN",
                 width,
-                ConsoleColor.DarkGray,
+                CyberTheme.Muted,
                 centered: true);
             EndPanel(width);
         }
@@ -69,18 +74,28 @@ internal sealed partial class TerminalRenderer
 
     public static ConsoleColor SeverityColor(Severity severity) => severity switch
     {
-        Severity.Critical or Severity.High => ConsoleColor.Red,
-        Severity.Medium => ConsoleColor.Yellow,
-        Severity.Low => ConsoleColor.Cyan,
-        _ => ConsoleColor.DarkGray
+        Severity.Critical or Severity.High => CyberTheme.Error,
+        Severity.Medium => CyberTheme.Warning,
+        Severity.Low => CyberTheme.Secondary,
+        _ => CyberTheme.Muted
     };
 
     public static ConsoleColor ChangeColor(ChangeType type) => type switch
     {
-        ChangeType.Added => ConsoleColor.Green,
-        ChangeType.Removed => ConsoleColor.Red,
+        ChangeType.Added => CyberTheme.Success,
+        ChangeType.Removed => CyberTheme.Error,
         ChangeType.Modified => ConsoleColor.Magenta,
-        ChangeType.Moved or ChangeType.Renamed => ConsoleColor.Cyan,
-        _ => ConsoleColor.Gray
+        ChangeType.Moved or ChangeType.Renamed => CyberTheme.Secondary,
+        _ => CyberTheme.Text
+    };
+
+    private static string ChangeMarker(ChangeType type) => type switch
+    {
+        ChangeType.Added => "[+]",
+        ChangeType.Removed => "[-]",
+        ChangeType.Modified => "[*]",
+        ChangeType.Moved => "[>]",
+        ChangeType.Renamed => "[~]",
+        _ => "[?]"
     };
 }
