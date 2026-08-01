@@ -73,6 +73,82 @@ public sealed class SeverityEngine : ISeverityEngine
                 "Задачи могут автоматически запускать программы по расписанию, при входе или старте системы.");
         }
 
+        if (provider.Equals("firewall", StringComparison.OrdinalIgnoreCase))
+        {
+            bool inbound = GetValue(artifact, "Direction")?.Equals(
+                "Inbound",
+                StringComparison.OrdinalIgnoreCase) == true;
+            bool allow = GetValue(artifact, "Action")?.Equals(
+                "Allow",
+                StringComparison.OrdinalIgnoreCase) == true;
+            bool enabled = GetValue(artifact, "Enabled")?.Equals(
+                "True",
+                StringComparison.OrdinalIgnoreCase) == true;
+
+            Severity severity = inbound && allow && enabled
+                ? Severity.High
+                : Severity.Medium;
+
+            return (
+                severity,
+                $"{Describe(changeType)} правило Windows Firewall.",
+                inbound && allow
+                    ? "Входящее разрешающее правило может открыть доступ к программе или службе из сети."
+                    : "Правила Firewall изменяют доступ приложений и служб к сети.");
+        }
+
+        if (provider.Equals("drivers", StringComparison.OrdinalIgnoreCase))
+        {
+            bool unsigned = GetValue(artifact, "Signature")?.Equals(
+                "MissingOrInvalid",
+                StringComparison.OrdinalIgnoreCase) == true;
+            bool persistenceChange = changeType is ChangeType.Added or ChangeType.Removed
+                || changedProperties.Any(x =>
+                    x.Name.Equals("BinaryPath", StringComparison.OrdinalIgnoreCase)
+                    || x.Name.Equals("StartMode", StringComparison.OrdinalIgnoreCase)
+                    || x.Name.Equals("Signature", StringComparison.OrdinalIgnoreCase));
+
+            if (unsigned && persistenceChange)
+            {
+                return (
+                    Severity.Critical,
+                    "Добавлен или изменён драйвер без подтверждённой цифровой подписи.",
+                    "Драйверы работают в ядре Windows; отсутствие подписи требует особенно внимательной проверки.");
+            }
+
+            return persistenceChange
+                ? (
+                    Severity.High,
+                    $"{Describe(changeType)} системный драйвер.",
+                    "Драйверы работают с высокими привилегиями и могут загружаться до входа пользователя.")
+                : (
+                    Severity.Info,
+                    "Изменилось текущее состояние драйвера.",
+                    "Состояние драйвера может меняться при обычной работе оборудования и Windows.");
+        }
+
+        if (provider.Equals("certificates", StringComparison.OrdinalIgnoreCase))
+        {
+            string storeName = GetValue(artifact, "StoreName") ?? string.Empty;
+            bool trustStore = storeName.Equals("Root", StringComparison.OrdinalIgnoreCase)
+                || storeName.Equals("AuthRoot", StringComparison.OrdinalIgnoreCase);
+
+            return (
+                trustStore ? Severity.High : Severity.Medium,
+                $"{Describe(changeType)} сертификат в хранилище {storeName}.",
+                trustStore
+                    ? "Доверенный корневой сертификат может влиять на проверку подписей и защищённых соединений."
+                    : "Сертификаты используются для идентификации, шифрования и проверки подписей.");
+        }
+
+        if (provider.Equals("installed-apps", StringComparison.OrdinalIgnoreCase))
+        {
+            return (
+                changeType == ChangeType.Modified ? Severity.Low : Severity.Medium,
+                $"{Describe(changeType)} запись установленного приложения.",
+                "Запись показывает установку, удаление или обновление программы в пользовательской либо системной области.");
+        }
+
         if (provider.Equals("registry", StringComparison.OrdinalIgnoreCase))
         {
             return (
@@ -95,7 +171,7 @@ public sealed class SeverityEngine : ISeverityEngine
 
         if (provider.Equals("filesystem", StringComparison.OrdinalIgnoreCase))
         {
-            string extension = Path.GetExtension(path);
+            string extension = Path.GetExtension(path).ToLowerInvariant();
             if (changeType == ChangeType.Added
                 && extension is ".exe" or ".dll" or ".sys" or ".ps1" or ".bat" or ".cmd")
             {
