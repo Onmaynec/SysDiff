@@ -1,8 +1,9 @@
 name: Patch Cyber Console 0.6
 
 on:
-  push:
-    branches: [agent/sysdiff-v0.6.0]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
     paths: [.github/workflows/patch-v060-terminal.yml]
 
 permissions:
@@ -10,6 +11,7 @@ permissions:
 
 jobs:
   patch:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -159,10 +161,7 @@ jobs:
 
           $nav = 'src/SysDiff.Cli/Terminal/TerminalNavigation.cs'
           $navContent = Get-Content $nav -Raw
-          $navContent = [regex]::Replace(
-              $navContent,
-              '        if \(itemCount == 9\)\s*\{.*?^        \}',
-              @'
+          $replacement = @'
                   if (itemCount == 9)
                   {
                       index = key switch
@@ -178,7 +177,12 @@ jobs:
                           _ => index
                       };
                   }
-          '@ -replace '^ {10}', '',
+          '@
+          $replacement = $replacement -replace '^ {10}', ''
+          $navContent = [regex]::Replace(
+              $navContent,
+              '        if \(itemCount == 9\)\s*\{.*?^        \}',
+              $replacement.TrimEnd(),
               [System.Text.RegularExpressions.RegexOptions]::Singleline -bor [System.Text.RegularExpressions.RegexOptions]::Multiline)
           Set-Content $nav $navContent -Encoding utf8NoBOM
 
