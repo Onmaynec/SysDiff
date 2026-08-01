@@ -4,7 +4,7 @@
 
 # SysDiff
 
-**Консольный инструмент для снимков, сравнения и локального расследования изменений Windows.**
+**Полноценная терминальная утилита для снимков, сравнения и расследования изменений Windows.**
 
 [![Сборка](https://github.com/Onmaynec/SysDiff/actions/workflows/build.yml/badge.svg)](https://github.com/Onmaynec/SysDiff/actions/workflows/build.yml)
 [![Тесты](https://github.com/Onmaynec/SysDiff/actions/workflows/test.yml/badge.svg)](https://github.com/Onmaynec/SysDiff/actions/workflows/test.yml)
@@ -17,192 +17,187 @@
 > [!IMPORTANT]
 > **SysDiff не является антивирусом.** Он фиксирует и объясняет системные изменения, но не объявляет объект безопасным или вредоносным.
 
-<img src="assets/screenshots/overview.svg" alt="Пример отчёта SysDiff">
+<img src="assets/screenshots/terminal-control-center.svg" alt="SysDiff Terminal Control Center 0.4.0">
 
-## 🔍 Что делает SysDiff
+## 🖥️ Terminal Control Center 0.4.0
 
-SysDiff создаёт снимки Windows до и после запуска программы, сравнивает их по стабильным идентификаторам и формирует Console, JSON, Markdown или автономный HTML-отчёт.
+Запустите SysDiff без аргументов:
 
 ```powershell
-sysdiff snapshot create before --profile standard
-
-# Установите или запустите исследуемую программу
-
-sysdiff snapshot create after --profile standard
-sysdiff compare before after --format html --output .\report.html
+sysdiff
 ```
 
-Версия **0.3.0** дополняет классические снимки инструментами расследования: live process/network monitor, переносимым `.sdshot`, investigation bundle, межмашинным сравнением, пользовательскими профилями и Provider SDK.
+или из исходников:
 
-## ✨ Возможности 0.3.0
+```powershell
+dotnet run --project .\src\SysDiff.Cli
+```
 
-- 📸 снимки файлов, реестра, служб, задач, автозагрузки и окружения;
-- 🧱 Windows Firewall, установленные приложения, драйверы и сертификаты;
-- 🌐 адаптеры, DNS, шлюзы, proxy и маршруты;
-- 🔴 live-события запуска и завершения процессов;
-- 📡 live-события открытия и закрытия TCP/UDP endpoints;
-- ↔️ определение уникальных перемещений и переименований файлов;
-- 🖥️ явное межмашинное сравнение с предупреждениями и confidence;
-- 📦 экспорт и импорт снимков `.sdshot` с SHA-256;
-- 🧳 investigation bundle со снимками и отчётами;
-- 🎛️ пользовательские JSON-профили;
-- 🧩 Provider SDK и явная загрузка внешних плагинов;
-- 🕶️ автоматическое маскирование `%USERPROFILE%`;
-- 🧹 фильтрация шума `Raw`, `Balanced`, `Strict`;
-- 🗃️ SQLite, portable mode, self-contained `win-x64`;
-- ⚙️ GitHub Actions, unit-тесты и smoke-тесты.
+Откроется собственная полноэкранная терминальная панель. Основной интерфейс больше не требует ввода числовых команд: разделы выбираются стрелками, действия открываются клавишей `Enter`, возврат выполняется через `Esc`.
+
+### Управление
+
+| Клавиша | Действие |
+|---|---|
+| `↑` / `↓` | навигация по меню и спискам |
+| `Enter` | открыть выбранный пункт |
+| `Esc` | вернуться назад |
+| `/` | поиск в Change Explorer |
+| `F` | переключить минимальную важность |
+| `S` | изменить сортировку |
+| `R` | показать или скрыть raw changes |
+| `E` | экспортировать сравнение |
+| `F5` | обновить dashboard |
+| `Q` | выйти из SysDiff |
+
+## ✨ Возможности 0.4.0
+
+- 🖥️ полноэкранный Terminal Control Center;
+- 🎨 ASCII-логотип, панели, цветовые статусы и компактная компоновка;
+- ⌨️ управление стрелками без мыши;
+- ✨ spinner-анимации и прогресс длительных операций;
+- 📸 интерактивный Snapshot Center;
+- 🔎 Comparison Lab с поиском, severity-фильтром и Change Explorer;
+- 👀 пошаговый Watch Session;
+- 📡 интерактивный Process/Network Live Monitor;
+- 📄 центр отчётов и investigation bundles;
+- 🩺 диагностика Windows, прав, SQLite, providers и размера терминала;
+- 🔁 автоматическое восстановление курсора и цветов после выхода;
+- 🤖 сохранение обычного CLI для PowerShell, CI и автоматизации.
+
+## 🧭 Разделы панели
+
+### Snapshot Center
+
+- создание снимка с выбором профиля;
+- анимированный прогресс текущего provider;
+- просмотр статуса и числа объектов;
+- экспорт и импорт `.sdshot`;
+- безопасное удаление с подтверждением.
+
+### Comparison Lab
+
+- выбор `before` и `after` стрелками;
+- режимы шума `Balanced`, `Strict`, `Raw`;
+- явный cross-machine режим;
+- обзор `Added`, `Removed`, `Modified`, `Moved`, `Renamed`;
+- просмотр свойств `before → after`;
+- HTML, JSON, Markdown и investigation bundle.
+
+### Watch Session
+
+- запуск программы или ручной режим;
+- этапы `before → launch/wait → stabilization → after → compare`;
+- ожидание дерева дочерних процессов;
+- безопасный тайм-аут без принудительного завершения процессов;
+- автоматический HTML-отчёт.
+
+### Live Monitor
+
+- события запуска и завершения процессов;
+- события появления и исчезновения TCP/UDP endpoints;
+- ограничение по времени и root PID;
+- JSON/Markdown-журналы;
+- содержимое сетевого трафика не читается.
+
+## 🔍 Классический CLI сохранён
+
+Интерактивная панель не заменяет команды автоматизации:
+
+```powershell
+sysdiff doctor
+sysdiff snapshot create before --profile standard
+sysdiff snapshot create after --profile standard
+sysdiff compare before after --format html --output .\report.html
+sysdiff watch .\Setup.exe --wait-for-children --timeout 900
+sysdiff live process --duration 60
+sysdiff snapshot export before --output .\before.sdshot
+```
+
+При перенаправленном `stdin` или `stdout` TUI не запускается и не добавляет ANSI-последовательности в машинный вывод.
 
 ## 🚀 Быстрый старт
 
 ### Системные требования
 
 - Windows 10 x64 или Windows 11 x64;
+- CMD, Windows PowerShell, PowerShell 7 или Windows Terminal;
 - для сборки — .NET 8 SDK;
-- Windows PowerShell 5.1 или PowerShell 7;
-- права администратора рекомендуются для полного системного снимка.
+- права администратора рекомендуются для полного снимка.
+
+### Сборка
 
 ```powershell
 git clone https://github.com/Onmaynec/SysDiff.git
 cd SysDiff
 
-dotnet restore
-dotnet build --configuration Release
-dotnet test --configuration Release
+dotnet restore SysDiff.sln
+dotnet build SysDiff.sln --configuration Release
+dotnet test SysDiff.sln --configuration Release
 ```
 
-Portable-пакет:
+### Portable-пакет
 
 ```powershell
 .\scripts\package.ps1
 ```
 
+Результат:
+
 ```text
-SysDiff-0.3.0-win-x64.zip
-SysDiff-0.3.0-win-x64.zip.sha256
+SysDiff-0.4.0-win-x64.zip
+SysDiff-0.4.0-win-x64.zip.sha256
 ```
 
-## 🧭 Команды 0.3
+## 🧩 Источники системных данных
 
-### Снимки и переносимый формат
+SysDiff анализирует:
 
-```powershell
-sysdiff snapshot create before
-sysdiff snapshot create custom --profile-file .\profile.json
-sysdiff snapshot export before --output .\before.sdshot
-sysdiff snapshot import .\before.sdshot
-```
-
-`.sdshot` содержит `manifest.json`, `snapshot.json` и `checksums.sha256`. Импорт проверяет схему, размер, структуру архива и SHA-256.
-
-### Сравнение
-
-```powershell
-sysdiff compare before after
-sysdiff compare before after --noise Strict --severity Medium
-sysdiff compare pc-a pc-b --cross-machine --format html --output .\cross-machine.html
-```
-
-При межмашинном сравнении SysDiff показывает различия Windows build и архитектуры, снижает confidence и требует явный флаг `--cross-machine`.
-
-### Live process monitor
-
-```powershell
-sysdiff live process --duration 60 --format json
-sysdiff live process --duration 120 --root-pid 1234 --format markdown
-```
-
-Режим фиксирует обнаруженные события `Started` и `Stopped`. Он не внедряется в процессы, не приостанавливает и не завершает их.
-
-### Live network monitor
-
-```powershell
-sysdiff live network --duration 60 --format json
-```
-
-Фиксируются изменения TCP-соединений и UDP listeners. Содержимое сетевого трафика не перехватывается.
-
-### Investigation bundle
-
-```powershell
-sysdiff bundle create <comparison-id> --output .\investigation.zip
-```
-
-Bundle включает два `.sdshot`, HTML/JSON/Markdown-отчёты, manifest и SHA-256. Сырые логи и приватные ключи не добавляются.
-
-### Пользовательские профили
-
-```powershell
-sysdiff profile load .\samples\profiles\installer-audit.json
-sysdiff snapshot create before --profile-file .\samples\profiles\installer-audit.json
-```
-
-Неизвестные провайдеры и небезопасные лимиты отклоняются до начала снимка.
-
-### Provider SDK
-
-```powershell
-dotnet build .\samples\plugins\SysDiff.SampleProvider\SysDiff.SampleProvider.csproj
-sysdiff snapshot create plugin-shot --profile-file .\plugin-profile.json `
-  --plugin .\SysDiff.SampleProvider.dll
-```
-
-Плагины **никогда не загружаются автоматически**. Пользователь обязан явно передать точный путь через `--plugin`.
-
-Полный справочник: [docs/COMMANDS.md](docs/COMMANDS.md).
-
-## 🧩 Провайдеры
-
-| ID | Данные | Версия |
-|---|---|---:|
-| `filesystem` | файлы, каталоги, метаданные, SHA-256 | 0.1 |
-| `registry` | HKCU/HKLM/HKCR, x86/x64, redaction | 0.1 |
-| `services` | службы, запуск, аккаунт, зависимости | 0.1 |
-| `scheduled-tasks` | задачи, действия и триггеры | 0.1 |
-| `startup` | Run/RunOnce, Startup Folder, Winlogon | 0.1 |
-| `environment` | переменные и элементы PATH | 0.1 |
-| `firewall` | правила, порты, адреса, программы | 0.2 |
-| `installed-apps` | приложения user/machine, x86/x64 | 0.2 |
-| `drivers` | пути, состояния, SHA-256, подписи | 0.2 |
-| `certificates` | хранилища, сроки и доверие | 0.2 |
-| `network-configuration` | adapters, DNS, gateways, proxy, routes | 0.3 |
+- файлы и каталоги;
+- реестр;
+- службы;
+- задачи планировщика;
+- автозагрузку;
+- переменные окружения и PATH;
+- Windows Firewall;
+- установленные приложения;
+- системные драйверы;
+- сертификаты Windows;
+- адаптеры, DNS, шлюзы, proxy и маршруты.
 
 Подробнее: [docs/PROVIDERS.md](docs/PROVIDERS.md).
 
 ## 🔐 Безопасность и конфиденциальность
 
-- системные пути, аргументы и команды рассматриваются только как данные;
-- значения реестра с признаками секрета заменяются на `<redacted>`;
-- пути `C:\Users\<имя>` автоматически заменяются на `%USERPROFILE%`;
-- machine fingerprint хранится как SHA-256, а не открытое имя компьютера;
-- приватные ключи сертификатов не извлекаются;
-- live network monitor не читает пакеты;
-- `.sdshot` проверяет ZIP Slip, размеры и checksums;
-- плагины являются исполняемым кодом и загружаются только явно;
-- ошибка одного провайдера приводит к `Partial`, но не уничтожает снимок.
+- пользовательские пути маскируются как `%USERPROFILE%`;
+- приватные ключи сертификатов не читаются;
+- плагины загружаются только через явный `--plugin`;
+- `.sdshot` проверяет структуру, размер и SHA-256;
+- найденные команды, пути и аргументы считаются данными и не выполняются;
+- live monitor не изменяет процессы, Firewall, DNS или маршруты;
+- SysDiff хранит снимки и отчёты локально.
 
-Подробнее: [docs/PRIVACY.md](docs/PRIVACY.md), [docs/SECURITY.md](docs/SECURITY.md).
-
-## ⚠️ Ограничения
-
-- polling может пропустить очень короткоживущий процесс или endpoint;
-- live network monitor версии 0.3 не гарантирует сопоставление endpoint с PID;
-- move/rename определяется только при уникальном совпадении SHA-256 и размера;
-- неоднозначные совпадения остаются `Added`/`Removed`;
-- cross-machine confidence не заменяет ручной анализ;
-- плагины выполняются с правами процесса SysDiff;
-- оценка важности не является вердиктом о вредоносности.
+Подробнее: [docs/SECURITY.md](docs/SECURITY.md) и [docs/PRIVACY.md](docs/PRIVACY.md).
 
 ## 📚 Документация
 
+- [Terminal Control Center](docs/TERMINAL_UI.md)
 - [Команды](docs/COMMANDS.md)
 - [Архитектура](docs/ARCHITECTURE.md)
 - [Провайдеры](docs/PROVIDERS.md)
-- [Live Monitor](docs/LIVE_MONITOR.md)
 - [Переносимые форматы](docs/PORTABLE_FORMATS.md)
 - [Provider SDK](docs/PROVIDER_SDK.md)
-- [Конфиденциальность](docs/PRIVACY.md)
 - [Решение проблем](docs/TROUBLESHOOTING.md)
 - [Roadmap](docs/ROADMAP.md)
+- [История изменений](CHANGELOG.md)
+
+## ⚠️ Ограничения
+
+- очень короткоживущие события могут завершиться между интервалами опроса;
+- защищённые области требуют администратора;
+- большие профили могут содержать сотни тысяч объектов;
+- узкие терминалы используют компактную одноколоночную компоновку;
+- оценка важности является объяснимой эвристикой, а не антивирусным вердиктом.
 
 ## 📜 Лицензия
 
@@ -212,6 +207,6 @@ sysdiff snapshot create plugin-shot --profile-file .\plugin-profile.json `
 
 <div align="center">
 
-**SysDiff — узнай, что изменилось в Windows.** 🪟🔎
+**SysDiff 0.4.0 — полноценная Windows-утилита внутри терминала.**
 
 </div>

@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Executable = ".\artifacts\publish\win-x64\sysdiff.exe",
-    [string]$ExpectedVersion = "0.3.0"
+    [string]$ExpectedVersion = "0.4.0"
 )
 
 $ErrorActionPreference = "Stop"
@@ -24,9 +24,19 @@ if (-not $fileVersion.StartsWith($ExpectedVersion, [System.StringComparison]::Or
     throw "Метаданные sysdiff.exe содержат версию $fileVersion вместо $ExpectedVersion"
 }
 
-& $Executable --help
-if ($LASTEXITCODE -ne 0) {
-    throw "Команда --help завершилась с кодом $LASTEXITCODE"
+$helpOutput = (& $Executable --help | Out-String)
+if ($LASTEXITCODE -ne 0 -or $helpOutput -notmatch "TERMINAL CONTROL CENTER 0.4") {
+    throw "Команда --help не содержит справку Terminal Control Center 0.4"
 }
 
-Write-Host "✅ Smoke-тест SysDiff $ExpectedVersion пройден." -ForegroundColor Green
+$doctorOutput = (& $Executable doctor | Out-String)
+if ($LASTEXITCODE -ne 0 -or $doctorOutput -notmatch "Диагностика SysDiff") {
+    throw "Команда doctor не прошла smoke-проверку"
+}
+
+$tuiOutput = (& $Executable --tui-smoke | Out-String)
+if ($LASTEXITCODE -ne 0 -or $tuiOutput -notmatch "SYSDIFF CONTROL CENTER 0.4.0") {
+    throw "TUI smoke frame не сформирован"
+}
+
+Write-Host "✅ Smoke-тест SysDiff $ExpectedVersion и Terminal Control Center пройден." -ForegroundColor Green

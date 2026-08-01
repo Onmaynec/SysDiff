@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = "0.3.0",
+    [string]$Version = "0.4.0",
     [string]$Runtime = "win-x64"
 )
 
@@ -17,7 +17,7 @@ New-Item $packageRoot -ItemType Directory -Force | Out-Null
 
 Push-Location $root
 try {
-    Write-Host "📦 Публикация portable-сборки..." -ForegroundColor Cyan
+    Write-Host "📦 Публикация portable-сборки SysDiff $Version..." -ForegroundColor Cyan
     dotnet publish .\src\SysDiff.Cli\SysDiff.Cli.csproj `
         --configuration Release `
         --runtime $Runtime `
@@ -34,7 +34,6 @@ try {
     Copy-Item .\THIRD_PARTY_NOTICES.md $packageRoot
     Copy-Item .\README.md (Join-Path $packageRoot "README.txt")
     Copy-Item .\samples\profiles (Join-Path $packageRoot "profiles") -Recurse
-    New-Item (Join-Path $packageRoot "plugins") -ItemType Directory -Force | Out-Null
     New-Item (Join-Path $packageRoot "portable.mode") -ItemType File | Out-Null
 
     Compress-Archive -Path "$packageRoot\*" -DestinationPath $zipPath -CompressionLevel Optimal
