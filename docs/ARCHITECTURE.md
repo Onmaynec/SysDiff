@@ -1,167 +1,89 @@
-# 🏗️ Архитектура SysDiff
+# 🏗️ Архитектура SysDiff 0.3
 
-## Цели
+## Принципы
 
-Архитектура SysDiff отделяет Windows-специфичный сбор данных от сравнения, хранения и представления. Ошибка одного провайдера не уничтожает весь снимок, а добавление нового источника не требует изменений движка сравнения или SQLite-схемы.
+- Windows-сбор данных отделён от сравнения, хранения и отчётов;
+- ошибка одного провайдера не уничтожает снимок;
+- системные строки всегда считаются данными;
+- SQLite schema 1 остаётся совместимой с 0.1/0.2;
+- новые функции расследования изолированы от стабильного CLI.
 
 ## Слои
 
-### `SysDiff.Domain`
+```text
+SysDiff.Domain
+  └─ модели, enum, интерфейсы, LiveEvent
 
-Не зависит от CLI, SQLite и Windows API. Содержит:
+SysDiff.Core
+  ├─ SnapshotCoordinator
+  ├─ ComparisonEngine
+  ├─ SeverityEngine / NoiseFilterEngine
+  ├─ ProfileCatalog / ProfileLoader
+  ├─ PrivacyRedactor
+  └─ MachineIdentity
 
-- `SystemArtifact` — нормализованный системный объект;
-- `SnapshotRecord` и `ProviderSnapshotResult`;
-- `SystemChange` и `ComparisonResult`;
-- профили и параметры провайдеров;
-- интерфейсы `ISnapshotProvider`, `ISnapshotStore`, `ISeverityEngine`, `INoiseFilterEngine`.
+SysDiff.Providers
+  ├─ filesystem / registry / services / tasks
+  ├─ startup / environment / firewall / apps
+  ├─ drivers / certificates
+  └─ network-configuration
 
-Схема снимка остаётся версии 1: провайдеры 0.2.0 добавляют новые типы артефактов, но не изменяют формат существующих записей.
+SysDiff.Storage
+  ├─ SqliteSnapshotStore
+  └─ SnapshotArchiveService (.sdshot)
 
-### `SysDiff.Core`
+SysDiff.Reporting
+  └─ Console / JSON / Markdown / HTML
 
-Координирует сценарии приложения:
+SysDiff.ProviderSdk
+  └─ явный контракт внешних providers
 
-- `SnapshotCoordinator` последовательно запускает включённые провайдеры;
-- `ComparisonEngine` сопоставляет объекты по стабильному `Identity`;
-- `SeverityEngine` объяснимо присваивает уровень важности;
-- `NoiseFilterEngine` скрывает известный системный шум только при отображении;
-- `ProfileCatalog` хранит встроенные профили.
+SysDiff.Cli
+  ├─ CommandApp (стабильные команды)
+  ├─ V3CommandRouter
+  ├─ ProcessLiveMonitor / NetworkLiveMonitor
+  ├─ InvestigationBundleService
+  └─ PluginProviderLoader
+```
 
-### `SysDiff.Providers`
+## Снимок
 
-Windows-реализации `ISnapshotProvider`:
-
-- файловая система;
-- реестр;
-- службы;
-- задачи планировщика;
-- автозагрузка;
-- окружение;
-- Windows Firewall;
-- установленные приложения;
-- системные драйверы;
-- сертификаты Windows.
-
-Провайдер возвращает статус, предупреждения, ошибки и список артефактов. Исключение провайдера перехватывается координатором и превращается в частичный результат.
-
-#### Изолированный PowerShell-адаптер
-
-`FirewallProvider` и `DriversProvider` используют `PowerShellJsonRunner` только для read-only запросов, которые сложнее надёжно выразить через текущие .NET API.
+`SnapshotCoordinator` запускает providers последовательно, маскирует пути через `PrivacyRedactor` и добавляет privacy-safe metadata artifact:
 
 ```text
-Provider
-   │ заранее определённый сценарий
-   ▼
-powershell.exe -NoProfile -NonInteractive
-   │ JSON stdout + тайм-аут
-   ▼
-SystemArtifact
+sysdiff://snapshot/machine
 ```
 
-Адаптер не подставляет в сценарий команды, пути или аргументы, найденные в системе. Данные из Firewall, драйверов, служб, задач и uninstall-разделов никогда не выполняются.
+Он содержит SHA-256 fingerprint, Windows build и архитектуру. Открытое имя компьютера не сохраняется.
 
-### `SysDiff.Storage`
+## Сравнение
 
-`SqliteSnapshotStore` хранит:
+1. Объекты сопоставляются по `Identity`.
+2. Формируются `Added`, `Removed`, `Modified`.
+3. Уникальная removed/added пара файлов с одинаковыми SHA-256 и размером может стать `Moved` или `Renamed`.
+4. Неоднозначные пары остаются без эвристического объединения.
+5. `SeverityEngine` добавляет важность.
+6. `NoiseFilterEngine` скрывает шум только при отображении.
+7. Cross-machine режим снижает confidence и добавляет предупреждения.
 
-- заголовки снимков;
-- статусы провайдеров;
-- нормализованные артефакты;
-- сравнения;
-- изменения.
+## Live Monitor
 
-Большие коллекции не сериализуются в одну строку: каждый артефакт и изменение хранится отдельной записью.
+Process monitor использует Toolhelp + polling. Network monitor сравнивает соседние состояния `IPGlobalProperties`. Оба режима:
 
-### `SysDiff.Reporting`
+- не устанавливают драйвер;
+- не внедряются в процессы;
+- не изменяют сеть;
+- поддерживают `CancellationToken`;
+- ограничивают число событий.
 
-Формирует представления без зависимости от CLI:
+## Переносимые форматы
 
-- консоль;
-- JSON;
-- Markdown;
-- автономный HTML.
+`SnapshotArchiveService` формирует `.sdshot` с manifest и checksums. `InvestigationBundleService` объединяет два снимка и отчёты. Архивы не выполняются и проверяются до импорта.
 
-### `SysDiff.Cli`
+## Provider SDK
 
-Содержит разбор команд, DI, базовое интерактивное меню, обработку exit codes и сценарий `watch`.
+Плагин загружается только по явному `--plugin`. Проверяются assembly attribute, версия SDK и реализация `ISnapshotProvider`. Плагин работает с правами SysDiff, поэтому автоматическая загрузка запрещена.
 
-`ProcessTreeWaiter` использует Toolhelp API для периодического чтения дерева процессов. Он не внедряется в процессы, не перехватывает их код и не завершает их при тайм-ауте.
+## Совместимость
 
-## Модель артефакта
-
-```csharp
-public sealed record SystemArtifact
-{
-    public required string ProviderId { get; init; }
-    public required string ArtifactType { get; init; }
-    public required string Identity { get; init; }
-    public required string DisplayName { get; init; }
-    public Dictionary<string, ArtifactValue> Properties { get; init; }
-    public HashSet<string> Tags { get; init; }
-}
-```
-
-`Identity` стабилен между снимками:
-
-```text
-file://C:/Program Files/Example/app.exe
-registry://HKLM64/Software/Example/Setting
-service://ExampleUpdater
-task://Microsoft/Windows/ExampleTask
-environment://machine/path/C:/Example/bin
-firewall://{rule-name}
-app://machine/x64/{product-id}
-driver://ExampleDriver
-certificate://LocalMachine/Root/{thumbprint}
-```
-
-## Поток создания снимка
-
-```text
-CLI
- │
- ▼
-SnapshotCoordinator
- │
- ├─ FileSystemProvider       ├─ FirewallProvider
- ├─ RegistryProvider         ├─ InstalledAppsProvider
- ├─ ServicesProvider         ├─ DriversProvider
- ├─ ScheduledTasksProvider   └─ CertificatesProvider
- ├─ StartupProvider
- └─ EnvironmentProvider
- │
- ▼
-SQLite
-```
-
-Снимок сначала создаётся как `InProgress`. После выполнения провайдеров он становится `Completed`, `Partial`, `Failed` или `Cancelled`.
-
-## Поток сравнения
-
-1. Артефакты двух снимков индексируются по `Identity`.
-2. Объект только во втором снимке — `Added`.
-3. Объект только в первом снимке — `Removed`.
-4. Объект в обоих снимках с отличающимися свойствами — `Modified`.
-5. `SeverityEngine` добавляет важность и объяснение.
-6. `NoiseFilterEngine` применяет выбранный режим.
-7. Результат сохраняется и передаётся рендереру.
-
-## Правила безопасности 0.2.0
-
-- приватные ключи сертификатов не читаются и не экспортируются;
-- файлы драйверов хешируются потоково;
-- проверка сертификата драйвера не выдаётся за полный вердикт Authenticode;
-- PowerShell имеет тайм-аут и принимает только JSON;
-- `watch --timeout` не завершает исследуемые процессы;
-- ошибки доступа локализуются внутри провайдера;
-- SQLite использует параметризованные запросы.
-
-## Текущие компромиссы
-
-- Провайдеры выполняются последовательно, чтобы не перегружать диск и системные API.
-- `Moved` и `Renamed` пока не определяются.
-- Toolhelp может пропустить очень короткоживущий дочерний процесс между опросами.
-- Полная проверка доверия Authenticode и сетевой отзыв сертификатов не выполняются.
-- Rollback не выполняется автоматически.
-- TUI остаётся простым меню без внешнего UI-фреймворка.
+Новые machine metadata хранятся как обычный artifact, поэтому таблицы SQLite не меняются. Поле `MachineFingerprint` восстанавливается из artifact при чтении старой базы.
