@@ -30,17 +30,22 @@ Roadmap отражает направление проекта, а не обещ
 
 - [x] полноэкранный dashboard;
 - [x] навигация стрелками;
-- [x] ASCII-логотип и цветовые панели;
-- [x] Snapshot Center;
-- [x] Comparison Lab и Change Explorer;
-- [x] Watch Session;
-- [x] интерактивный Live Monitor;
-- [x] Reports & Bundles;
-- [x] spinner/progress animations;
-- [x] compact layout;
+- [x] Snapshot Center, Comparison Lab, Watch и Live Monitor;
+- [x] Reports, Diagnostics и compact layout;
 - [x] восстановление состояния консоли;
 - [x] TUI tests и smoke frame;
 - [x] сохранение non-interactive CLI.
+
+## 0.5.0 — Cyber Console ✅
+
+- [x] Cyber Control Node в стилистике NexRoute — #27;
+- [x] boot sequence и переходы экранов — #28;
+- [x] Action Console с этапами, elapsed time и progress bars — #29;
+- [x] единая neon theme и текстовые status markers — #30;
+- [x] Command Deck и быстрые клавиши `1–9`, `P/C/W/L/D` — #31;
+- [x] safe animation mode, `NO_COLOR` и terminal compatibility tests — #32;
+- [x] живой Provider Stream;
+- [x] новое SVG-preview и русская документация.
 
 ## 1.0.0 — стабильность
 
