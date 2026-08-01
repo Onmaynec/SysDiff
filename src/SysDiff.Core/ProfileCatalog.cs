@@ -34,13 +34,15 @@ public sealed class ProfileCatalog
         new()
         {
             Name = "minimal",
-            Description = "Быстрый снимок служб, задач, автозагрузки и окружения.",
+            Description = "Быстрый снимок служб, задач, автозагрузки, Firewall, приложений и окружения.",
             Providers = new Dictionary<string, ProviderOptions>(StringComparer.OrdinalIgnoreCase)
             {
                 ["services"] = new(),
                 ["scheduled-tasks"] = new(),
                 ["startup"] = new(),
-                ["environment"] = new()
+                ["environment"] = new(),
+                ["firewall"] = new(),
+                ["installed-apps"] = new()
             }
         };
 
@@ -84,7 +86,11 @@ public sealed class ProfileCatalog
                 ["services"] = new(),
                 ["scheduled-tasks"] = new(),
                 ["startup"] = new(),
-                ["environment"] = new()
+                ["environment"] = new(),
+                ["firewall"] = new(),
+                ["installed-apps"] = new(),
+                ["drivers"] = new(),
+                ["certificates"] = new()
             }
         };
 
@@ -92,7 +98,7 @@ public sealed class ProfileCatalog
         new()
         {
             Name = "full",
-            Description = "Расширенный ресурсоёмкий профиль с полным хешированием.",
+            Description = "Расширенный ресурсоёмкий профиль со всеми провайдерами и полным хешированием.",
             Providers = new Dictionary<string, ProviderOptions>(StringComparer.OrdinalIgnoreCase)
             {
                 ["filesystem"] = new()
@@ -132,7 +138,11 @@ public sealed class ProfileCatalog
                 ["services"] = new(),
                 ["scheduled-tasks"] = new(),
                 ["startup"] = new(),
-                ["environment"] = new()
+                ["environment"] = new(),
+                ["firewall"] = new(),
+                ["installed-apps"] = new(),
+                ["drivers"] = new(),
+                ["certificates"] = new()
             }
         };
 }
