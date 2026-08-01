@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.IO.Compression;
-using System.Net;
 using System.Security.Cryptography;
 
 namespace SysDiff.Cli;
@@ -34,7 +33,6 @@ public sealed class UpdateService
         catch (Exception exception) when (
             exception is HttpRequestException
             or IOException
-            or ReleaseManifestException
             or InvalidDataException)
         {
             UpdateState previous = await _store.LoadStateAsync(CancellationToken.None);

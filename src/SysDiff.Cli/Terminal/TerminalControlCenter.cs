@@ -19,13 +19,16 @@ internal sealed partial class TerminalControlCenter
         new("watch", "Watch Operations", "контролируемый запуск программы", "▶"),
         new("live", "Live Signal", "процессы и сетевые endpoints", "●"),
         new("reports", "Report Vault", "готовые отчёты и архивы", "▤"),
-        new("system", "System Node", "diagnostics, settings, about, disconnect", "⚙")
+        new("system", "System Node", "updates, diagnostics, settings and disconnect", "⚙")
     ];
 
     private readonly AppPaths _paths;
     private readonly ISnapshotStore _store;
     private readonly IInvestigationStore _investigationStore;
     private readonly DriftOperationsService _driftOperations;
+    private readonly UpdateService _updateService;
+    private readonly UpdateSettingsStore _updateSettingsStore;
+    private readonly UpdateInstaller _updateInstaller;
     private readonly SnapshotCoordinator _coordinator;
     private readonly ProfileCatalog _profiles;
     private readonly IReadOnlyCollection<ISnapshotProvider> _providers;
@@ -45,6 +48,9 @@ internal sealed partial class TerminalControlCenter
         ISnapshotStore store,
         IInvestigationStore investigationStore,
         DriftOperationsService driftOperations,
+        UpdateService updateService,
+        UpdateSettingsStore updateSettingsStore,
+        UpdateInstaller updateInstaller,
         SnapshotCoordinator coordinator,
         ProfileCatalog profiles,
         IEnumerable<ISnapshotProvider> providers,
@@ -63,6 +69,9 @@ internal sealed partial class TerminalControlCenter
         _store = store;
         _investigationStore = investigationStore;
         _driftOperations = driftOperations;
+        _updateService = updateService;
+        _updateSettingsStore = updateSettingsStore;
+        _updateInstaller = updateInstaller;
         _coordinator = coordinator;
         _profiles = profiles;
         _providers = providers.ToArray();
@@ -1006,7 +1015,7 @@ internal sealed partial class TerminalControlCenter
     private void RunAbout()
     {
         _renderer.ShowMessage(
-            "ABOUT SYSDIFF 0.6.0",
+            "ABOUT SYSDIFF 0.7.0",
             "SysDiff — локальная Windows-утилита для снимков, сравнения и расследования системных изменений. Cyber Console с Drift Operations является основным интерактивным интерфейсом, а CLI-команды сохранены для автоматизации и CI.\n\nSysDiff не является антивирусом и не выносит вердикт о вредоносности. Live monitor ничего не завершает, не меняет сеть и не читает содержимое трафика.\n\nАвтор: Onmaynec\nЛицензия: MIT");
     }
 

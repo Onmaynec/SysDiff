@@ -375,6 +375,7 @@ internal sealed partial class TerminalControlCenter
     {
         IReadOnlyList<TerminalMenuItem> actions =
         [
+            new("updates", "Update Center", "stable releases, download and safe install", "⇧"),
             new("doctor", "Node Diagnostics", "Windows, SQLite, providers and terminal", "✓"),
             new("settings", "System Settings", "paths, storage and Command Deck", "⚙"),
             new("about", "About Node", "version, purpose and safety", "i"),
@@ -389,6 +390,10 @@ internal sealed partial class TerminalControlCenter
         if (action is null || action.Id == "back")
         {
             return false;
+        }
+        if (action.Id == "updates")
+        {
+            return await RunUpdateCenterAsync(cancellationToken);
         }
         if (action.Id == "doctor")
         {
