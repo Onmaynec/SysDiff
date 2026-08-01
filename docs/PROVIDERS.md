@@ -1,137 +1,63 @@
 # 🧩 Провайдеры снимков
 
-Каждый источник реализует `ISnapshotProvider` и возвращает независимый результат. Ошибка доступа не останавливает остальные источники: снимок сохраняется со статусом `Partial`, а причина остаётся в предупреждениях провайдера.
+Каждый источник реализует `ISnapshotProvider`. Ошибка отдельного источника не уничтожает снимок: результат становится `Partial`, а причина сохраняется в предупреждениях.
 
-## FileSystemProvider
+## Встроенные providers
+
+| ID | Источник |
+|---|---|
+| `filesystem` | файлы, каталоги, метаданные, SHA-256, reparse points |
+| `registry` | HKCU/HKLM/HKCR/HKU/HKCC, x86/x64, secret redaction |
+| `services` | службы, путь, аккаунт, тип запуска, зависимости |
+| `scheduled-tasks` | задачи, actions, triggers, XML и привилегии |
+| `startup` | Run/RunOnce, Startup Folder, Winlogon |
+| `environment` | user/machine variables и отдельные PATH entries |
+| `firewall` | направление, действие, profiles, ports, addresses, program |
+| `installed-apps` | uninstall registry, user/machine, x86/x64 |
+| `drivers` | состояние, путь, версия, SHA-256 и сведения о подписи |
+| `certificates` | Windows stores, сроки, EKU и локальное доверие |
+| `network-configuration` | adapters, DNS, gateways, addresses, proxy и routes |
+
+## 🌐 NetworkConfigurationProvider
+
+Провайдер использует нативный `NetworkInterface` для adapters и read-only PowerShell для `Get-NetRoute`.
 
 Собирает:
 
-- путь и тип;
-- размер;
-- время создания и изменения;
-- атрибуты;
-- reparse point и link target;
-- SHA-256 в режимах `Smart` и `Full`.
+- имя, тип и operational status адаптера;
+- speed и MAC address;
+- DNS suffix и DNS servers;
+- gateways и unicast addresses;
+- proxy текущего пользователя;
+- destination prefix, next hop, metric, protocol и state маршрута.
 
-Защита:
+Он не изменяет DNS, proxy, routes или interfaces.
 
-- потоковое хеширование;
-- ограничение максимального размера;
-- лимит артефактов;
-- максимальная глубина;
-- исключения по glob;
-- запрет обхода reparse point.
+## 🔐 Защита данных
 
-## RegistryProvider
+- FileSystem использует потоковое хеширование и не следует по reparse point;
+- Registry маскирует password/token/secret/credential/API key;
+- uninstall commands, service paths и task actions никогда не выполняются;
+- приватные ключи сертификатов не читаются;
+- PowerShell получает только заранее определённый read-only script и возвращает JSON;
+- все пути проходят через `PrivacyRedactor` до сохранения снимка.
 
-Поддерживает:
+## 🧩 Внешние providers
 
-```text
-HKCU
-HKLM / HKLM32 / HKLM64
-HKCR / HKCR32 / HKCR64
-HKU
-HKCC
+Provider SDK описан в [PROVIDER_SDK.md](PROVIDER_SDK.md).
+
+```powershell
+sysdiff snapshot create plugin-shot --profile-file .\plugin-profile.json `
+  --plugin .\Provider.dll
 ```
 
-Сохраняет имя, тип и значение параметра. Бинарные значения получают SHA-256 и ограниченный preview. Имена с признаками секрета маскируются.
+Плагин обязан:
 
-## ServicesProvider
+1. содержать совместимый `SysDiffProviderPluginAttribute`;
+2. реализовать публичный `ISnapshotProvider`;
+3. иметь конструктор без параметров;
+4. использовать стабильные `Id` и `Identity`;
+5. поддерживать `CancellationToken`;
+6. не выполнять найденные системные данные.
 
-Использует `ServiceController` и безопасное чтение
-`HKLM\SYSTEM\CurrentControlSet\Services`.
-
-Собирает имя, состояние, тип службы, путь запуска, тип запуска, учётную запись, зависимости и описание.
-
-## ScheduledTasksProvider
-
-Использует документированный COM API Task Scheduler. Сохраняет путь, состояние, XML, действия и типы триггеров. Задачи входа и загрузки получают теги постоянного запуска.
-
-## StartupProvider
-
-Проверяет:
-
-- HKCU/HKLM Run и RunOnce;
-- 32- и 64-битные представления;
-- пользовательскую и общую Startup Folder;
-- Winlogon Shell;
-- Winlogon Userinit.
-
-## EnvironmentProvider
-
-Собирает пользовательские и машинные переменные. `PATH` разбирается на отдельные элементы, поэтому добавление, удаление и смена порядка видны независимо.
-
-## FirewallProvider 🧱
-
-Использует изолированный read-only адаптер PowerShell и стандартные cmdlet модуля `NetSecurity`.
-
-Собирает:
-
-- имя и отображаемое имя правила;
-- направление и действие;
-- состояние и сетевой профиль;
-- протокол, локальные и удалённые порты;
-- локальные и удалённые адреса;
-- путь программы и имя службы;
-- описание и группу.
-
-Входящее включённое правило с действием `Allow` получает повышенную важность. SysDiff не включает, не отключает и не изменяет правила.
-
-## InstalledAppsProvider 📦
-
-Читает стандартные uninstall-разделы реестра для:
-
-- `HKLM` и `HKCU`;
-- 32- и 64-битных представлений;
-- пользовательской и машинной областей.
-
-Сохраняет имя, версию, издателя, дату и каталог установки, команды удаления, Product ID, архитектуру и источник. Команды удаления считаются данными и никогда не запускаются.
-
-## DriversProvider ⚙️
-
-Получает список системных драйверов через изолированный `Get-CimInstance Win32_SystemDriver`, затем безопасно обогащает доступные бинарные файлы:
-
-- состоянием и режимом запуска;
-- путём и типом службы;
-- версией файла и издателем;
-- SHA-256 через потоковое чтение;
-- наличием читаемого сертификата подписи.
-
-`MissingOrInvalid` означает, что SysDiff не смог получить сертификат из файла. Это полезный сигнал для проверки, но не полная валидация цепочки Authenticode.
-
-## CertificatesProvider 🔐
-
-Читает хранилища `My`, `Root`, `CA`, `AuthRoot`, `TrustedPublisher` и `TrustedPeople` в областях `CurrentUser` и `LocalMachine`.
-
-Сохраняет:
-
-- Subject и Issuer;
-- thumbprint и серийный номер;
-- срок действия;
-- Enhanced Key Usage;
-- алгоритмы подписи и открытого ключа;
-- факт наличия приватного ключа;
-- результат локальной проверки цепочки без сетевой загрузки сертификатов.
-
-> Приватный ключ никогда не читается и не экспортируется.
-
-## Изолированный PowerShell-адаптер
-
-Firewall и драйверы используют `PowerShellJsonRunner`. Адаптер:
-
-- запускает `powershell.exe` без профиля и интерактивного режима;
-- передаёт заранее определённый read-only сценарий через `-EncodedCommand`;
-- принимает только JSON;
-- ограничивает время выполнения;
-- не подставляет в сценарий значения из снимка;
-- не выполняет найденные пути, аргументы или команды.
-
-## Добавление нового провайдера
-
-1. Создайте класс, реализующий `ISnapshotProvider`.
-2. Выберите стабильный `Id`.
-3. Определите стабильный `Identity` каждого объекта.
-4. Не выполняйте данные, найденные в системе.
-5. Возвращайте предупреждения вместо аварийного завершения при частичном доступе.
-6. Зарегистрируйте провайдер в DI и профилях.
-7. Добавьте правила важности, тесты и документацию.
+Плагины не обнаруживаются и не загружаются автоматически.
