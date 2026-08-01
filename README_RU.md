@@ -4,21 +4,32 @@
 
 # 🇷🇺 Русская документация SysDiff
 
-**Основной [`README.md`](README.md) полностью написан на русском и описывает актуальную версию 0.6.0.**
+**Основной [`README.md`](README.md) полностью написан на русском и описывает актуальную версию 0.7.0.**
 
 </div>
 
-## 🧭 Главное изменение 0.6.0
+## 🚀 Главное изменение 0.7.0
 
-SysDiff получил **Drift Operations**:
+SysDiff получил полноценный **Release Channel**:
 
-- доверенную baseline;
-- быстрый Drift Scan;
-- explainable risk score `0–100`;
-- Investigation Timeline;
-- Case Vault;
-- автоматическую привязку snapshot/comparison/report к активному кейсу;
-- additive SQLite migration без изменения старых таблиц.
+- аннотированные теги `vX.Y.Z`;
+- GitHub Releases с portable ZIP;
+- SHA-256 и проверяемый `release-manifest.json`;
+- GitHub provenance attestations;
+- встроенную проверку stable channel;
+- Update Center в Cyber Console;
+- безопасный staging, backup, verification и rollback;
+- auto-check без автоматической установки.
+
+```powershell
+sysdiff update check
+sysdiff update download
+sysdiff update install --yes --restart
+```
+
+По умолчанию auto-check включён, auto-download выключен, а установка всегда требует подтверждения.
+
+## 🧭 Drift Operations сохранены
 
 ```powershell
 sysdiff baseline set trusted-clean
@@ -33,7 +44,9 @@ sysdiff case create "Installer audit" --tags installer,test
 sysdiff
 ```
 
-Безопасный режим:
+В `System Node` доступен новый `Update Center`.
+
+Безопасный режим интерфейса:
 
 ```powershell
 $env:SYSDIFF_NO_ANIMATIONS = "1"
@@ -44,6 +57,7 @@ sysdiff
 ## 📚 Разделы
 
 - [Главная страница](README.md)
+- [Обновления и Release Channel](docs/UPDATES.md)
 - [Drift Operations](docs/DRIFT_OPERATIONS.md)
 - [Cyber Console](docs/TERMINAL_UI.md)
 - [Команды](docs/COMMANDS.md)
@@ -58,4 +72,4 @@ sysdiff
 - [История изменений](CHANGELOG.md)
 
 > [!IMPORTANT]
-> SysDiff не является антивирусом, а Drift Risk Score не является вероятностью заражения.
+> SysDiff не является антивирусом. Версия 0.7.0 пока не имеет Authenticode-подписи; это явно указано в release manifest через `unsigned: true`.
