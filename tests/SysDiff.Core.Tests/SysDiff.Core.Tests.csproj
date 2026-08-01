@@ -7,6 +7,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\SysDiff.Domain\SysDiff.Domain.csproj" />
     <ProjectReference Include="..\..\src\SysDiff.Core\SysDiff.Core.csproj" />
+    <ProjectReference Include="..\..\src\SysDiff.Storage\SysDiff.Storage.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio">
