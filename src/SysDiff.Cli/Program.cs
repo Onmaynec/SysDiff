@@ -19,7 +19,9 @@ internal static class Program
         IReadOnlyList<ISnapshotProvider> pluginProviders;
         try
         {
-            (cleanArgs, string[] pluginPaths) = PluginProviderLoader.ExtractArguments(args);
+            (string[] arguments, string[] pluginPaths) =
+                PluginProviderLoader.ExtractArguments(args);
+            cleanArgs = arguments;
             pluginProviders = PluginProviderLoader.Load(pluginPaths);
         }
         catch (Exception exception) when (
