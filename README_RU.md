@@ -4,24 +4,34 @@
 
 # 🇷🇺 Русская документация SysDiff
 
-**Основной [`README.md`](README.md) полностью написан на русском и описывает актуальную версию 0.4.0.**
+**Основной [`README.md`](README.md) полностью написан на русском и описывает актуальную версию 0.5.0.**
 
 </div>
 
-## 🖥️ Главное изменение 0.4.0
+## 🟢 Главное изменение 0.5.0
 
-SysDiff теперь запускается как полноценная терминальная утилита с собственной панелью:
+SysDiff получил новый **Cyber Control Node**, визуально приближенный к NexRoute:
 
 ```powershell
 sysdiff
 ```
 
-Доступны ASCII-логотип, стрелочная навигация, Snapshot Center, Comparison Lab, Watch Session, Live Monitor, Reports & Bundles, Diagnostics и анимации длительных операций.
+Добавлены нумерованный Command Deck, neon green/cyan theme, boot sequence, Action Console, живой Provider Stream, progress/scanner-анимации и быстрые клавиши `1–9`, `P`, `C`, `W`, `L`, `D`.
+
+Безопасный режим:
+
+```powershell
+$env:SYSDIFF_NO_ANIMATIONS = "1"
+$env:NO_COLOR = "1"
+sysdiff
+```
+
+Обычные CLI-команды сохранены для скриптов и CI.
 
 ## 📚 Разделы
 
 - [Главная страница](README.md)
-- [Terminal Control Center](docs/TERMINAL_UI.md)
+- [Cyber Console](docs/TERMINAL_UI.md)
 - [Команды](docs/COMMANDS.md)
 - [Архитектура](docs/ARCHITECTURE.md)
 - [Провайдеры](docs/PROVIDERS.md)
