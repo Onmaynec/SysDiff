@@ -1,4 +1,4 @@
-# ⌨️ Команды SysDiff 0.5.0
+# ⌨️ Команды SysDiff 0.6.0
 
 ## Cyber Console
 
@@ -6,7 +6,7 @@
 sysdiff
 ```
 
-Без аргументов SysDiff открывает интерактивный Cyber Control Node. Полное описание: [TERMINAL_UI.md](TERMINAL_UI.md).
+Без аргументов SysDiff открывает Cyber Control Node. Подробности: [TERMINAL_UI.md](TERMINAL_UI.md).
 
 ### Command Deck
 
@@ -15,24 +15,14 @@ sysdiff
 | `1`…`9` | открыть модуль по номеру |
 | `P`, `B`, `A` | Snapshot Node |
 | `C` | Diff Lab |
+| `G` | Drift Operations |
+| `T` | Investigation Timeline |
+| `K` | Case Vault |
 | `W` | Watch Operations |
-| `L` | Live Signal Monitor |
-| `D` | Node Diagnostics |
-| `↑`, `↓` | перемещение |
-| `Enter` | выполнить действие |
-| `Esc` | назад |
+| `L` | Live Signal |
+| `D` | System Node |
 | `F5` | обновить dashboard |
-| `Q` | выйти |
-
-### Безопасный визуальный режим
-
-```powershell
-$env:SYSDIFF_NO_ANIMATIONS = "1"
-$env:NO_COLOR = "1"
-sysdiff
-```
-
-`SYSDIFF_NO_ANIMATIONS` отключает boot sequence и динамическую перерисовку. `NO_COLOR` отключает цвет, но сохраняет текстовые маркеры `[OK]`, `[!!]`, `[XX]`, `[>>]` и `[--]`.
+| `Q` | выход |
 
 ## Общие команды
 
@@ -40,13 +30,63 @@ sysdiff
 sysdiff --help
 sysdiff --version
 sysdiff doctor
-```
-
-`--tui-smoke` предназначен для CI и выводит статический preview Cyber Console без чтения клавиш и задержек:
-
-```powershell
 sysdiff --tui-smoke
 ```
+
+## Baseline
+
+```powershell
+sysdiff baseline show
+sysdiff baseline set <snapshot-name-or-id>
+sysdiff baseline set trusted-clean --note "После чистой установки"
+sysdiff baseline clear
+```
+
+`baseline set` принимает только существующий локальный snapshot. Failed, Cancelled и Corrupted snapshots отклоняются.
+
+## Drift Scan
+
+```powershell
+sysdiff drift scan
+sysdiff drift scan --profile minimal
+sysdiff drift scan --profile standard --noise Balanced
+sysdiff drift scan --profile full --noise Raw
+```
+
+| Параметр | Значения | По умолчанию |
+|---|---|---|
+| `--profile` | `minimal`, `standard`, `full` | `standard` |
+| `--noise` | `Raw`, `Balanced`, `Strict` | `Balanced` |
+
+Без baseline команда не запускается. Partial current snapshot сохраняется, но команда возвращает код `7`.
+
+## Timeline
+
+```powershell
+sysdiff timeline list
+sysdiff timeline list --limit 100
+sysdiff timeline list --kind Snapshot
+sysdiff timeline list --kind Comparison
+sysdiff timeline list --kind DriftScan
+sysdiff timeline list --kind Case
+sysdiff timeline list --kind Note
+```
+
+`--limit` принимает значение `1–1000`.
+
+## Case Vault
+
+```powershell
+sysdiff case create <name>
+sysdiff case create "Installer audit" --description "Проверка Setup.exe" --tags installer,test
+sysdiff case list
+sysdiff case show <name-or-id>
+sysdiff case use <name-or-id>
+sysdiff case use none
+sysdiff case close <name-or-id>
+```
+
+`case create` автоматически делает новый кейс активным. Закрытый кейс нельзя активировать.
 
 ## Снимки
 
@@ -80,8 +120,6 @@ sysdiff compare pc-a pc-b --cross-machine
 | `--format` | `console`, `json`, `html`, `markdown` | формат отчёта |
 | `--output` | путь | выходной файл |
 | `--cross-machine` | флаг | явное сравнение разных компьютеров |
-
-В интерактивном Change Explorer используются `/`, `F`, `S`, `R` и `E` для поиска, severity-фильтра, сортировки, raw mode и экспорта.
 
 ## Watch
 
@@ -122,7 +160,7 @@ sysdiff snapshot create plugin-test --plugin C:\Plugins\Example.dll
 
 Плагин является исполняемым кодом и загружается только по явному `--plugin`.
 
-## Конфигурация и пути
+## Конфигурация
 
 ```powershell
 sysdiff config show
@@ -135,9 +173,9 @@ sysdiff config path
 |---:|---|
 | 0 | успех |
 | 1 | общая ошибка |
-| 2 | некорректные аргументы или невозможность запустить TUI в redirected режиме |
-| 3 | снимок не найден |
+| 2 | некорректные аргументы или невозможность запустить TUI |
+| 3 | snapshot/baseline не найдены |
 | 5 | доступ запрещён |
-| 7 | частичный снимок или безопасно завершённый timeout |
+| 7 | частичный snapshot или безопасный timeout |
 | 8 | отменено |
 | 9 | ошибка хранилища |
