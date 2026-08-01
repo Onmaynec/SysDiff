@@ -91,7 +91,7 @@ internal sealed class ProcessLiveMonitor
 
         int current = process.ProcessId;
         var visited = new HashSet<int>();
-        while (visited.Add(current) && processes.TryGetValue(current, out ProcessInfo? item))
+        while (visited.Add(current) && processes.TryGetValue(current, out ProcessInfo item))
         {
             if (current == rootProcessId.Value)
             {
