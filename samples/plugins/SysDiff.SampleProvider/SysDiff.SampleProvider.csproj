@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>SysDiff.SampleProvider</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\SysDiff.Domain\SysDiff.Domain.csproj" />
+    <ProjectReference Include="..\..\..\src\SysDiff.ProviderSdk\SysDiff.ProviderSdk.csproj" />
+  </ItemGroup>
+</Project>
