@@ -33,6 +33,13 @@ public sealed class TerminalMenuNavigator
 
     public TerminalNavigationAction Apply(ConsoleKey key)
     {
+        int directIndex = ResolveDirectIndex(key, ItemCount);
+        if (directIndex >= 0)
+        {
+            SelectedIndex = directIndex;
+            return TerminalNavigationAction.Activate;
+        }
+
         switch (key)
         {
             case ConsoleKey.UpArrow:
@@ -75,6 +82,38 @@ public sealed class TerminalMenuNavigator
 
     public void SetSelectedIndex(int selectedIndex) =>
         SelectedIndex = Math.Clamp(selectedIndex, 0, ItemCount - 1);
+
+    public static int ResolveDirectIndex(ConsoleKey key, int itemCount)
+    {
+        int index = key switch
+        {
+            ConsoleKey.D1 or ConsoleKey.NumPad1 => 0,
+            ConsoleKey.D2 or ConsoleKey.NumPad2 => 1,
+            ConsoleKey.D3 or ConsoleKey.NumPad3 => 2,
+            ConsoleKey.D4 or ConsoleKey.NumPad4 => 3,
+            ConsoleKey.D5 or ConsoleKey.NumPad5 => 4,
+            ConsoleKey.D6 or ConsoleKey.NumPad6 => 5,
+            ConsoleKey.D7 or ConsoleKey.NumPad7 => 6,
+            ConsoleKey.D8 or ConsoleKey.NumPad8 => 7,
+            ConsoleKey.D9 or ConsoleKey.NumPad9 => 8,
+            _ => -1
+        };
+
+        if (itemCount == 9)
+        {
+            index = key switch
+            {
+                ConsoleKey.P or ConsoleKey.B or ConsoleKey.A => 0,
+                ConsoleKey.C => 1,
+                ConsoleKey.W => 2,
+                ConsoleKey.L => 3,
+                ConsoleKey.D => 5,
+                _ => index
+            };
+        }
+
+        return index >= 0 && index < itemCount ? index : -1;
+    }
 }
 
 public static class TerminalCapabilities
