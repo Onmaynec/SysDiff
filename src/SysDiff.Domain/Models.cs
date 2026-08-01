@@ -71,7 +71,7 @@ public sealed record SnapshotRecord
 
     public DateTimeOffset CreatedAtUtc { get; init; } = DateTimeOffset.UtcNow;
 
-    public string SysDiffVersion { get; init; } = "0.1.0";
+    public string SysDiffVersion { get; init; } = "0.2.0";
 
     public int SchemaVersion { get; init; } = 1;
 
