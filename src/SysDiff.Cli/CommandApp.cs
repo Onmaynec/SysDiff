@@ -55,7 +55,7 @@ public sealed class CommandApp
 
         if (args[0] is "--version" or "-v")
         {
-            Console.WriteLine("SysDiff 0.1.0");
+            Console.WriteLine("SysDiff 0.2.0");
             return 0;
         }
 
@@ -312,6 +312,19 @@ public sealed class CommandApp
         string session = DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss");
         string beforeName = $"watch-{session}-before";
         string afterName = $"watch-{session}-after";
+        bool waitForChildren = reader.Has("wait-for-children");
+        int timeoutSeconds = reader.GetInt("timeout", 0);
+        int delaySeconds = reader.GetInt("stabilization-delay", 3);
+
+        if (timeoutSeconds < 0)
+        {
+            throw new ArgumentException("--timeout не может быть отрицательным.");
+        }
+
+        if (delaySeconds < 0)
+        {
+            throw new ArgumentException("--stabilization-delay не может быть отрицательным.");
+        }
 
         Console.WriteLine("1/4 Создание начального снимка…");
         SnapshotRecord before = await _coordinator.CaptureAsync(
@@ -322,6 +335,7 @@ public sealed class CommandApp
             progress: null,
             cancellationToken);
 
+        bool timedOut = false;
         if (reader.Has("no-launch"))
         {
             Console.WriteLine();
@@ -348,10 +362,26 @@ public sealed class CommandApp
             Console.WriteLine($"2/4 Запуск: {expanded}");
             using Process process = Process.Start(startInfo)
                 ?? throw new InvalidOperationException("Не удалось запустить процесс.");
-            await process.WaitForExitAsync(cancellationToken);
+
+            TimeSpan? timeout = timeoutSeconds > 0
+                ? TimeSpan.FromSeconds(timeoutSeconds)
+                : null;
+            ProcessTreeWaitResult waitResult = await ProcessTreeWaiter.WaitAsync(
+                process,
+                waitForChildren,
+                timeout,
+                cancellationToken);
+
+            timedOut = waitResult.TimedOut;
+            Console.WriteLine(
+                $"Процессов замечено: {waitResult.ObservedProcesses}; длительность: {waitResult.Duration:g}; код: {waitResult.ExitCode?.ToString() ?? "н/д"}.");
+
+            if (timedOut)
+            {
+                Console.WriteLine("⚠ Тайм-аут ожидания достигнут. Процессы не завершаются автоматически; итоговый снимок будет создан сейчас.");
+            }
         }
 
-        int delaySeconds = reader.GetInt("stabilization-delay", 3);
         if (delaySeconds > 0)
         {
             Console.WriteLine($"3/4 Ожидание стабилизации: {delaySeconds} сек.");
@@ -367,8 +397,14 @@ public sealed class CommandApp
             progress: null,
             cancellationToken);
 
-        ComparisonResult comparison =
-            _comparisonEngine.Compare(before, after, NoiseMode.Balanced);
+        NoiseMode noiseMode = Enum.TryParse(
+            reader.Get("noise", "Balanced"),
+            ignoreCase: true,
+            out NoiseMode parsedNoise)
+            ? parsedNoise
+            : throw new ArgumentException("Допустимые режимы шума: Raw, Balanced, Strict.");
+
+        ComparisonResult comparison = _comparisonEngine.Compare(before, after, noiseMode);
         await _store.SaveComparisonAsync(comparison, cancellationToken);
 
         string reportPath = reader.Get(
@@ -380,8 +416,12 @@ public sealed class CommandApp
         await File.WriteAllTextAsync(fullReportPath, html, cancellationToken);
 
         Console.WriteLine($"Готово. Найдено изменений: {comparison.Changes.Count:N0}");
+        Console.WriteLine($"Скрыто как шум: {comparison.HiddenAsNoise:N0}");
         Console.WriteLine($"HTML-отчёт: {fullReportPath}");
-        return before.Status == SnapshotStatus.Partial || after.Status == SnapshotStatus.Partial
+
+        return timedOut
+            || before.Status == SnapshotStatus.Partial
+            || after.Status == SnapshotStatus.Partial
             ? 7
             : 0;
     }
