@@ -8,21 +8,30 @@ public sealed class NoiseFilterEngine : INoiseFilterEngine
     [
         @"\Temp\",
         @"\Cache\",
+        @"\Caches\",
         @"\Logs\",
         @"\INetCache\",
         @"\Prefetch\",
         @"\CrashDumps\",
         @"\Code Cache\",
-        @"\GPUCache\"
+        @"\GPUCache\",
+        @"\ShaderCache\",
+        @"\Service Worker\CacheStorage\",
+        @"\Windows\SoftwareDistribution\Download\",
+        @"\Windows\System32\LogFiles\",
+        @"\Microsoft\Windows\WebCache\"
     ];
 
     private static readonly string[] NoiseExtensions =
     [
         ".tmp",
+        ".temp",
         ".log",
         ".etl",
         ".dmp",
-        ".cache"
+        ".cache",
+        ".old",
+        ".bak"
     ];
 
     public IReadOnlyList<SystemChange> Apply(
@@ -62,6 +71,18 @@ public sealed class NoiseFilterEngine : INoiseFilterEngine
 
     private static bool IsNoise(SystemChange change)
     {
+        if (change.ProviderId.Equals("services", StringComparison.OrdinalIgnoreCase))
+        {
+            return change.ChangeType == ChangeType.Modified
+                && HasOnlyProperties(change, "Status");
+        }
+
+        if (change.ProviderId.Equals("drivers", StringComparison.OrdinalIgnoreCase))
+        {
+            return change.ChangeType == ChangeType.Modified
+                && HasOnlyProperties(change, "State", "Status", "Started");
+        }
+
         if (!change.ProviderId.Equals("filesystem", StringComparison.OrdinalIgnoreCase))
         {
             return false;
@@ -79,5 +100,16 @@ public sealed class NoiseFilterEngine : INoiseFilterEngine
 
         string extension = Path.GetExtension(candidate);
         return NoiseExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static bool HasOnlyProperties(SystemChange change, params string[] names)
+    {
+        if (change.ChangedProperties.Count == 0)
+        {
+            return false;
+        }
+
+        var allowed = new HashSet<string>(names, StringComparer.OrdinalIgnoreCase);
+        return change.ChangedProperties.All(x => allowed.Contains(x.Name));
     }
 }
