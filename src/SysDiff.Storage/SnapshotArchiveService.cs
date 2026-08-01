@@ -51,21 +51,24 @@ public sealed class SnapshotArchiveService
         string temporary = fullPath + $".{Guid.NewGuid():N}.tmp";
         try
         {
-            await using FileStream file = new(
+            await using (FileStream file = new(
                 temporary,
                 FileMode.CreateNew,
                 FileAccess.ReadWrite,
                 FileShare.None,
                 bufferSize: 64 * 1024,
-                useAsync: true);
-            using (var archive = new ZipArchive(file, ZipArchiveMode.Create, leaveOpen: true))
+                useAsync: true))
             {
-                await WriteEntryAsync(archive, "manifest.json", manifestBytes, cancellationToken);
-                await WriteEntryAsync(archive, "snapshot.json", snapshotBytes, cancellationToken);
-                await WriteEntryAsync(archive, "checksums.sha256", checksumBytes, cancellationToken);
+                using (var archive = new ZipArchive(file, ZipArchiveMode.Create, leaveOpen: true))
+                {
+                    await WriteEntryAsync(archive, "manifest.json", manifestBytes, cancellationToken);
+                    await WriteEntryAsync(archive, "snapshot.json", snapshotBytes, cancellationToken);
+                    await WriteEntryAsync(archive, "checksums.sha256", checksumBytes, cancellationToken);
+                }
+
+                await file.FlushAsync(cancellationToken);
             }
 
-            await file.FlushAsync(cancellationToken);
             File.Move(temporary, fullPath, overwrite: true);
             return fullPath;
         }
