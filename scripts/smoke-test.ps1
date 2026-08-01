@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Executable = ".\artifacts\publish\win-x64\sysdiff.exe",
-    [string]$ExpectedVersion = "0.5.0"
+    [string]$ExpectedVersion = "0.6.0"
 )
 
 $ErrorActionPreference = "Stop"
@@ -25,13 +25,26 @@ if (-not $fileVersion.StartsWith($ExpectedVersion, [System.StringComparison]::Or
 }
 
 $helpOutput = (& $Executable --help | Out-String)
-if ($LASTEXITCODE -ne 0 -or $helpOutput -notmatch "SYSDIFF CYBER CONSOLE 0.5") {
-    throw "Команда --help не содержит справку Cyber Console 0.5"
+if ($LASTEXITCODE -ne 0 -or $helpOutput -notmatch "SYSDIFF CYBER CONSOLE 0.6") {
+    throw "Команда --help не содержит справку Cyber Console 0.6"
+}
+if ($helpOutput -notmatch "DRIFT OPERATIONS 0.6" -or $helpOutput -notmatch "baseline set") {
+    throw "Команда --help не содержит Drift Operations"
 }
 
 $doctorOutput = (& $Executable doctor | Out-String)
 if ($LASTEXITCODE -ne 0 -or $doctorOutput -notmatch "Диагностика SysDiff") {
     throw "Команда doctor не прошла smoke-проверку"
+}
+
+$timelineOutput = (& $Executable timeline list --limit 5 | Out-String)
+if ($LASTEXITCODE -ne 0 -or $timelineOutput -notmatch "Timeline пока пуста|Snapshot:|Comparison:") {
+    throw "Команда timeline list не прошла smoke-проверку"
+}
+
+$caseOutput = (& $Executable case list | Out-String)
+if ($LASTEXITCODE -ne 0 -or $caseOutput -notmatch "Кейсов пока нет") {
+    throw "Команда case list не прошла smoke-проверку"
 }
 
 $env:SYSDIFF_NO_ANIMATIONS = "1"
@@ -43,11 +56,11 @@ finally {
     Remove-Item Env:SYSDIFF_NO_ANIMATIONS -ErrorAction SilentlyContinue
     Remove-Item Env:NO_COLOR -ErrorAction SilentlyContinue
 }
-if ($LASTEXITCODE -ne 0 -or $tuiOutput -notmatch "SYSDIFF CYBER CONSOLE 0.5.0") {
+if ($LASTEXITCODE -ne 0 -or $tuiOutput -notmatch "SYSDIFF CYBER CONSOLE 0.6.0") {
     throw "Cyber Console smoke frame не сформирован"
 }
-if ($tuiOutput -notmatch "ACTION CONSOLE" -or $tuiOutput -notmatch "COMMAND DECK") {
-    throw "Smoke frame не содержит ключевые блоки Cyber Console"
+if ($tuiOutput -notmatch "DRIFT OPERATIONS" -or $tuiOutput -notmatch "BASELINE:" -or $tuiOutput -notmatch "ACTIVE CASE:") {
+    throw "Smoke frame не содержит ключевые блоки Drift Operations"
 }
 
-Write-Host "✅ Smoke-тест SysDiff $ExpectedVersion и Cyber Console пройден." -ForegroundColor Green
+Write-Host "✅ Smoke-тест SysDiff $ExpectedVersion и Drift Operations пройден." -ForegroundColor Green
