@@ -99,6 +99,7 @@ internal static class Program
         services.AddSingleton<V4CommandRouter>();
         services.AddSingleton<V6CommandRouter>();
         services.AddSingleton<V7CommandRouter>();
+        services.AddSingleton<V8CommandRouter>();
         services.AddSingleton<CommandApp>();
 
         await using ServiceProvider provider = services.BuildServiceProvider();
@@ -131,7 +132,7 @@ internal static class Program
         try
         {
             CommandApp fallback = provider.GetRequiredService<CommandApp>();
-            return await provider.GetRequiredService<V7CommandRouter>()
+            return await provider.GetRequiredService<V8CommandRouter>()
                 .RunAsync(cleanArgs, fallback, cancellation.Token);
         }
         catch (OperationCanceledException)

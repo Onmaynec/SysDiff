@@ -6,12 +6,49 @@
 
 ### Планируется
 
-- стабильная схема данных 1.0;
-- полноценные migrations и compatibility policy;
+- стабильная публичная схема данных 1.0;
+- реальные migration handlers для будущих breaking schema changes;
 - Authenticode code signing официального EXE;
 - безопасный rollback preview системных изменений;
 - оптимизация больших снимков;
 - полная локализация RU/EN.
+
+## [0.8.0] — 2026-08-01
+
+### Добавлено
+
+- Compatibility Center с командами `compatibility status|matrix|inspect|verify`;
+- машинный JSON-вывод матрицы поддерживаемых format/schema versions;
+- безопасная inspection `.sdshot` без записи в SQLite;
+- публичная модель `SnapshotArchiveInspection`;
+- статусы `Compatible`, `RequiresNewerSysDiff`, `UnsupportedLegacy` и `Invalid`;
+- отдельный `V8CommandRouter` поверх маршрутизации 0.7;
+- документация `docs/COMPATIBILITY.md`;
+- тесты совместимого архива и корректно подписанной будущей схемы.
+
+### Изменено
+
+- версия EXE, snapshot metadata, CyberTheme, package и smoke-test обновлена до `0.8.0`;
+- `SnapshotArchiveService.ImportAsync` использует единую compatibility policy;
+- packaging включает offline-руководство `COMPATIBILITY.txt`;
+- SemVer validation в `package.ps1` теперь корректно якорится целиком.
+
+### Совместимость
+
+- `.sdshot` format version `1` и snapshot schema version `1` остаются текущими;
+- inspection не объявляет schema `1.0` стабильной публичной схемой продукта;
+- архив из более новой версии отклоняется до сохранения snapshot;
+- архив без безопасного migration path получает явный `UnsupportedLegacy`;
+- старые команды делегируются через `V8 → V7 → V6 → V4 → V3`.
+
+### Безопасность
+
+- проверяются все ZIP entry paths, а не только обязательные файлы;
+- дубликаты `manifest.json`, `snapshot.json` и `checksums.sha256` отклоняются;
+- SHA-256 сверяется по отдельным точным строкам checksum-файла;
+- manifest и snapshot обязаны иметь одинаковые Snapshot ID и schema version;
+- неизвестная или будущая схема не импортируется частично;
+- inspection не изменяет SQLite и пользовательские данные.
 
 ## [0.7.0] — 2026-08-01
 

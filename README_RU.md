@@ -4,22 +4,30 @@
 
 # 🇷🇺 Русская документация SysDiff
 
-**Основной [`README.md`](README.md) полностью написан на русском и описывает актуальную версию 0.7.0.**
+**Основной [`README.md`](README.md) полностью написан на русском и описывает актуальную версию 0.8.0.**
 
 </div>
 
-## 🚀 Главное изменение 0.7.0
+## 🧩 Главное изменение 0.8.0
 
-SysDiff получил полноценный **Release Channel**:
+SysDiff получил **Compatibility Center** для проверки `.sdshot` до импорта:
 
-- аннотированные теги `vX.Y.Z`;
-- GitHub Releases с portable ZIP;
-- SHA-256 и проверяемый `release-manifest.json`;
-- GitHub provenance attestations;
-- встроенную проверку stable channel;
-- Update Center в Cyber Console;
-- безопасный staging, backup, verification и rollback;
-- auto-check без автоматической установки.
+- format/schema compatibility matrix;
+- read-only inspection без записи в SQLite;
+- JSON-вывод для CI;
+- статусы compatible/newer/legacy/invalid;
+- SHA-256, ZIP path и duplicate entry validation;
+- отказ от частичного импорта более новой схемы.
+
+```powershell
+sysdiff compatibility status
+sysdiff compatibility inspect .\before.sdshot
+sysdiff compatibility inspect .\before.sdshot --json
+```
+
+Подробнее: [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
+
+## 🔄 Release Channel
 
 ```powershell
 sysdiff update check
@@ -29,7 +37,7 @@ sysdiff update install --yes --restart
 
 По умолчанию auto-check включён, auto-download выключен, а установка всегда требует подтверждения.
 
-## 🧭 Drift Operations сохранены
+## 🧭 Drift Operations
 
 ```powershell
 sysdiff baseline set trusted-clean
@@ -44,8 +52,6 @@ sysdiff case create "Installer audit" --tags installer,test
 sysdiff
 ```
 
-В `System Node` доступен новый `Update Center`.
-
 Безопасный режим интерфейса:
 
 ```powershell
@@ -57,6 +63,7 @@ sysdiff
 ## 📚 Разделы
 
 - [Главная страница](README.md)
+- [Совместимость](docs/COMPATIBILITY.md)
 - [Обновления и Release Channel](docs/UPDATES.md)
 - [Drift Operations](docs/DRIFT_OPERATIONS.md)
 - [Cyber Console](docs/TERMINAL_UI.md)
@@ -72,4 +79,4 @@ sysdiff
 - [История изменений](CHANGELOG.md)
 
 > [!IMPORTANT]
-> SysDiff не является антивирусом. Версия 0.7.0 пока не имеет Authenticode-подписи; это явно указано в release manifest через `unsigned: true`.
+> SysDiff не является антивирусом. Версия 0.8.0 пока не имеет Authenticode-подписи; это явно указано в release manifest через `unsigned: true`.

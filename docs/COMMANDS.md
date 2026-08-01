@@ -1,4 +1,4 @@
-# ⌨️ Команды SysDiff 0.7.0
+# ⌨️ Команды SysDiff 0.8.0
 
 ## Cyber Console
 
@@ -32,6 +32,32 @@ sysdiff --version
 sysdiff doctor
 sysdiff --tui-smoke
 ```
+
+## Compatibility Center
+
+### Матрица reader
+
+```powershell
+sysdiff compatibility status
+sysdiff compatibility status --json
+sysdiff compatibility matrix
+sysdiff compat matrix --json
+```
+
+Команда показывает текущий container format, snapshot schema и минимальные читаемые версии.
+
+### Проверка `.sdshot`
+
+```powershell
+sysdiff compatibility inspect .\before.sdshot
+sysdiff compatibility inspect .\before.sdshot --json
+sysdiff compatibility verify .\before.sdshot
+sysdiff compat verify .\before.sdshot --json
+```
+
+Inspection проверяет ZIP paths, обязательные entries, SHA-256, JSON, format identifier, Snapshot ID и schema version. Операция не сохраняет snapshot в SQLite.
+
+Статусы: `Compatible`, `RequiresNewerSysDiff`, `UnsupportedLegacy`, `Invalid`. Несовместимый или повреждённый архив возвращает exit code `4`.
 
 ## Обновления
 
@@ -67,7 +93,7 @@ sysdiff update settings --auto-check false
 sysdiff update settings --auto-download true
 sysdiff update settings --auto-download false
 sysdiff update settings --interval-hours 12
-sysdiff update settings --ignore 0.8.0
+sysdiff update settings --ignore 0.9.0
 sysdiff update settings --ignore none
 sysdiff update clear-cache
 ```
@@ -151,6 +177,8 @@ sysdiff snapshot export <name-or-id> --output .\before.sdshot
 sysdiff snapshot import .\before.sdshot
 ```
 
+Перед импортом внешнего архива рекомендуется выполнить `compatibility inspect`.
+
 ## Сравнение
 
 ```powershell
@@ -223,6 +251,7 @@ sysdiff config path
 | 1 | общая, сетевая или update-ошибка |
 | 2 | некорректные аргументы или невозможность запустить TUI |
 | 3 | snapshot/baseline не найдены |
+| 4 | несовместимый или повреждённый переносимый формат |
 | 5 | доступ запрещён |
 | 7 | частичный snapshot или безопасный timeout |
 | 8 | отменено |

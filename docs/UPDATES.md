@@ -1,6 +1,6 @@
 # 🔄 Обновления SysDiff
 
-SysDiff 0.7.0 использует официальный **stable release channel** GitHub. Проверка обновлений выполняется по `release-manifest.json`, опубликованному вместе с каждым GitHub Release.
+SysDiff 0.8.0 использует официальный **stable release channel** GitHub. Проверка обновлений выполняется по `release-manifest.json`, опубликованному вместе с каждым GitHub Release.
 
 ## Быстрый старт
 
@@ -53,7 +53,7 @@ sysdiff update settings
 sysdiff update settings --auto-check false
 sysdiff update settings --auto-check true --interval-hours 12
 sysdiff update settings --auto-download true
-sysdiff update settings --ignore 0.8.0
+sysdiff update settings --ignore 0.9.0
 sysdiff update settings --ignore none
 ```
 
@@ -161,7 +161,7 @@ sysdiff update clear-cache
 - `release-manifest.json`;
 - GitHub artifact attestations для ZIP и manifest.
 
-Версия 0.7.0 пока публикуется без Authenticode-сертификата. Это указано явно:
+Версия 0.8.0 пока публикуется без Authenticode-сертификата. Это указано явно:
 
 ```json
 {

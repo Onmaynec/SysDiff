@@ -1,159 +1,145 @@
-# 🏗️ Архитектура SysDiff 0.6.0
+# 🏗️ Архитектура SysDiff 0.8.0
 
 ## Цель
 
-SysDiff отделяет сбор Windows-данных от управления, хранения и визуализации. Cyber Console и non-interactive CLI используют одинаковые application services. Анимации не участвуют в системных операциях.
+SysDiff разделяет сбор Windows-данных, comparison, investigations, хранение, отчёты, terminal UI, release channel и compatibility policy. Интерактивный Cyber Console и non-interactive CLI используют одинаковые application services.
 
 ## Слои
 
 ```text
-Cyber Control Node                  Non-interactive CLI
-        │                                      │
-        └────────────────┬─────────────────────┘
-                         ▼
-               V6 → V4 → V3 routers
-                         │
-        ┌────────────────┼───────────────────┐
-        ▼                ▼                   ▼
-Snapshot workflows   Drift Operations    Live/Watch workflows
-        │                │                   │
-        ▼                ▼                   ▼
-SnapshotCoordinator  DriftOperationsService Process/Network monitors
-        │                │
-        ▼                ├── ComparisonEngine
-ISnapshotProvider[]      ├── DriftRiskEngine
-        │                ├── Reporting
-        └────────┬───────┴──────────────┐
-                 ▼                      ▼
-        ISnapshotStore          IInvestigationStore
-                 │                      │
-                 └──────── SQLite sysdiff.db ────────┘
+Cyber Control Node                         Non-interactive CLI
+        │                                           │
+        └────────────────────┬──────────────────────┘
+                             ▼
+                  V8 → V7 → V6 → V4 → V3
+                             │
+       ┌─────────────────────┼──────────────────────┐
+       ▼                     ▼                      ▼
+Snapshot workflows      Drift Operations      Compatibility Center
+       │                     │                      │
+       ▼                     ├─ ComparisonEngine    └─ SnapshotArchiveService
+SnapshotCoordinator         ├─ DriftRiskEngine            │
+       │                     ├─ Reporting                  ├─ ZIP guards
+       ▼                     └─ Timeline / Cases           ├─ SHA-256
+ISnapshotProvider[]                  │                     ├─ manifest invariants
+       │                             │                     └─ format/schema policy
+       └──────────────┬──────────────┘
+                      ▼
+             ISnapshotStore / IInvestigationStore
+                      │
+                      ▼
+                 SQLite sysdiff.db
 ```
 
-## Domain
+## Проекты solution
 
-`Investigations.cs` содержит:
+| Проект | Ответственность |
+|---|---|
+| `SysDiff.Domain` | records, enums и storage contracts |
+| `SysDiff.Core` | capture coordination, comparison, profiles, risk и privacy |
+| `SysDiff.Storage` | SQLite, `.sdshot`, compatibility inspection |
+| `SysDiff.Providers` | read-only Windows data providers |
+| `SysDiff.Reporting` | Console, JSON, Markdown и HTML |
+| `SysDiff.ProviderSdk` | явный контракт внешних providers |
+| `SysDiff.Cli` | DI, command routers, TUI, watch/live, updater |
 
-- `BaselineRecord`;
-- `InvestigationCaseRecord`;
-- `InvestigationLink`;
-- `TimelineEventRecord`;
-- `DriftRiskSummary`;
-- `DriftScanResult`;
-- `IInvestigationStore`.
-
-Эти модели не зависят от Console, SQLite или Windows API.
-
-## Storage
-
-### `SqliteSnapshotStore`
-
-Сохраняет legacy core data:
+## Versioned command routers
 
 ```text
-snapshots
-snapshot_providers
-artifacts
-comparisons
-changes
+V8CommandRouter
+  ├── compatibility status|matrix|inspect|verify
+  └── V7CommandRouter
+        ├── update check|status|download|install|settings|clear-cache
+        └── V6CommandRouter
+              ├── baseline
+              ├── drift
+              ├── timeline
+              ├── case
+              └── V4 → V3 → CommandApp
 ```
 
-### `SqliteInvestigationStore`
+Новая версия перехватывает только свои команды и делегирует остальные вниз. Это уменьшает риск регрессии parser logic и сохраняет старые automation scripts.
 
-Добавляет 0.6 tables:
+## Snapshot Archive Compatibility
+
+### Экспорт
+
+`SnapshotArchiveService.ExportAsync` создаёт:
 
 ```text
-app_migrations
-investigation_settings
-investigation_cases
-investigation_links
-timeline_events
+snapshot.sdshot
+├── manifest.json
+├── snapshot.json
+└── checksums.sha256
 ```
 
-Migration additive и idempotent. Существующие таблицы не изменяются.
+Manifest содержит format identifier, container format version, snapshot schema version, producer version, Snapshot ID и время создания.
 
-`ListTimelineAsync` объединяет explicit timeline events с реконструированными snapshots/comparisons. Реконструкция read-only и не переписывает старые записи.
+### Inspection
 
-## Drift Operations
+`InspectAsync` является read-only операцией:
 
-### Baseline
+1. проверяет размер файла;
+2. открывает ZIP с лимитом entries;
+3. валидирует каждый entry path;
+4. требует единственный manifest, snapshot и checksum;
+5. проверяет uncompressed size;
+6. сверяет точные SHA-256 строки;
+7. десериализует JSON;
+8. проверяет format, Snapshot ID и schema invariants;
+9. возвращает `SnapshotArchiveInspection`;
+10. не вызывает `ISnapshotStore.SaveSnapshotAsync`.
 
-`DriftOperationsService.SetBaselineAsync`:
+### Import
 
-1. загружает snapshot;
-2. проверяет статус;
-3. сохраняет `BaselineRecord`;
-4. записывает Timeline note;
-5. связывает baseline с active case.
+`ImportAsync` использует ту же policy evaluation. Сохранение выполняется только при `CanImport=true`; newer, legacy-without-handler и invalid archives не создают частичный snapshot.
 
-### Scan
-
-`ScanAsync`:
-
-1. загружает baseline;
-2. создаёт current snapshot через `SnapshotCoordinator`;
-3. запускает `ComparisonEngine`;
-4. сохраняет comparison;
-5. рассчитывает `DriftRiskSummary`;
-6. пишет HTML и JSON;
-7. создаёт Timeline event;
-8. добавляет links в active case.
-
-Ни один этап не выполняет rollback или изменение исследуемой системы.
-
-## Drift Risk Engine
-
-Формула детерминирована:
+## Compatibility model
 
 ```text
-sum(severityWeight × confidence × noiseMultiplier)
-+ providerDiversityBonus
-= clamp(0..100)
+Compatible
+RequiresNewerSysDiff
+UnsupportedLegacy
+Invalid
 ```
 
-Risk score является приоритетом анализа, не malware probability.
-
-## CLI routers
+Текущая матрица:
 
 ```text
-V6CommandRouter
-  ├── baseline
-  ├── drift
-  ├── timeline
-  ├── case
-  └── V4CommandRouter
-        └── V3CommandRouter
-              └── CommandApp
+container format: 1..1
+snapshot schema:  1..1
 ```
 
-Так команды 0.1–0.5 сохраняются без копирования parser logic.
+Эта матрица описывает текущий reader, но ещё не является публичной schema 1.0.
 
-## Cyber Console
+## Storage и migrations
 
-`TerminalControlCenter` разделён на partial files:
+`SqliteSnapshotStore` сохраняет core snapshots/comparisons. `SqliteInvestigationStore` добавляет additive investigation tables и `app_migrations`.
 
-- основной Snapshot/Diff/Watch/Live workflow;
-- `TerminalControlCenter.Drift.cs` для baseline, timeline и cases.
+0.8.0 не изменяет SQLite schema. Будущий migration handler должен быть последовательным, идемпотентным, транзакционным, иметь backup/dry-run и отклонять неизвестную более новую схему.
 
-Главное меню содержит девять модулей. `System Node` группирует diagnostics/settings/about/disconnect.
+## Release Channel
 
-`TerminalRenderer.Drift.cs` визуализирует score, levels, severity distribution, factors и report paths.
+`UpdateService` проверяет официальный stable manifest, HTTPS allow-list, size и SHA-256. `UpdateInstaller` выполняет staging, version verification, backup, replace, post-install verification и rollback.
 
-## Совместимость и безопасность
+Release workflow после squash merge ветки `agent/sysdiff-vX.Y.Z` повторяет tests/package/smoke, создаёт tag, provenance attestations и GitHub Release.
 
-- unknown notes/tags остаются строками;
-- captured paths не выполняются;
-- удалённая baseline возвращает `null`;
-- закрытие case не удаляет linked objects;
-- active case хранится отдельной setting;
-- foreign keys существуют только между новыми tables;
-- JSON identifiers не зависят от TUI colors или языка.
+## Безопасность
+
+- providers выполняют только заранее определённое чтение;
+- captured paths, commands, notes и tags остаются данными;
+- plugin DLL загружается только через явный `--plugin`;
+- `.sdshot` не доверяет ZIP names, declared size или checksum text;
+- newer snapshot не десериализуется с последующим сохранением урезанной модели;
+- inspection не меняет SQLite, baseline или active case;
+- updater не заменяет работающий EXE напрямую;
+- опасные действия требуют явного подтверждения.
 
 ## Тестирование
 
-- Core tests проверяют score и boundary levels;
-- CLI tests проверяют Command Deck;
-- integration tests создают реальную SQLite database;
-- repeated initialization проверяет idempotency;
-- smoke-test проверяет version/help/timeline/cases/TUI frame;
-- Windows CI публикует self-contained `win-x64`.
+- Core tests: comparison, privacy, profiles, archive round-trip и compatibility;
+- Providers tests: severity/noise и Windows provider behavior;
+- CLI tests: routers, TUI, updater, manifest и installer plan;
+- integration tests: SQLite initialization и investigation persistence;
+- smoke-test: version, help, compatibility matrix, doctor, timeline, cases, updater и TUI frame;
+- release workflow: self-contained `win-x64`, package manifest, SHA-256 и release assets.
