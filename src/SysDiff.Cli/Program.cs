@@ -45,6 +45,10 @@ internal static class Program
         services.AddSingleton<ISnapshotProvider, ScheduledTasksProvider>();
         services.AddSingleton<ISnapshotProvider, StartupProvider>();
         services.AddSingleton<ISnapshotProvider, EnvironmentProvider>();
+        services.AddSingleton<ISnapshotProvider, FirewallProvider>();
+        services.AddSingleton<ISnapshotProvider, InstalledAppsProvider>();
+        services.AddSingleton<ISnapshotProvider, DriversProvider>();
+        services.AddSingleton<ISnapshotProvider, CertificatesProvider>();
 
         services.AddSingleton<SnapshotCoordinator>();
         services.AddSingleton<CommandApp>();
