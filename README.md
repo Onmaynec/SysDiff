@@ -4,41 +4,56 @@
 
 # SysDiff
 
-**Полноценная cyber-terminal утилита для снимков, сравнения, расследования дрейфа и безопасного обновления Windows-инструмента.**
+**Cyber-terminal утилита для снимков, сравнения, расследования дрейфа и безопасной проверки переносимых данных Windows.**
 
 [![Сборка](https://github.com/Onmaynec/SysDiff/actions/workflows/build.yml/badge.svg)](https://github.com/Onmaynec/SysDiff/actions/workflows/build.yml)
 [![Тесты](https://github.com/Onmaynec/SysDiff/actions/workflows/test.yml/badge.svg)](https://github.com/Onmaynec/SysDiff/actions/workflows/test.yml)
 [![Релиз](https://img.shields.io/github/v/release/Onmaynec/SysDiff?display_name=tag&sort=semver)](https://github.com/Onmaynec/SysDiff/releases)
 [![Лицензия](https://img.shields.io/badge/license-MIT-40d9d0.svg)](LICENSE)
 [![Платформа](https://img.shields.io/badge/Windows-10%20%7C%2011-52a8ff.svg)](#-системные-требования)
-[![Версия](https://img.shields.io/badge/version-0.7.0-22c55e.svg)](CHANGELOG.md)
+[![Версия](https://img.shields.io/badge/version-0.8.0-22c55e.svg)](CHANGELOG.md)
 
 </div>
 
 > [!IMPORTANT]
 > **SysDiff не является антивирусом.** Он фиксирует, сравнивает и объясняет системные изменения, но не объявляет объект безопасным или вредоносным.
 
-<img src="assets/screenshots/release-channel.svg" alt="SysDiff Release Channel 0.7.0">
+## 🧩 SysDiff 0.8.0 — Compatibility Center
 
-## 🚀 SysDiff 0.7.0 — Release Channel
+Версия 0.8.0 добавляет проверяемую совместимость переносимых `.sdshot` до импорта:
 
-Версия 0.7.0 переводит проект на полноценные релизы:
+- единая матрица container format и snapshot schema;
+- read-only inspection без записи в SQLite;
+- статусы `Compatible`, `RequiresNewerSysDiff`, `UnsupportedLegacy`, `Invalid`;
+- машинный JSON-вывод для CI;
+- отказ от частичного импорта newer schema;
+- проверка всех ZIP paths и дубликатов entries;
+- точная проверка SHA-256;
+- согласованность manifest, Snapshot ID и schema version.
 
-- автоматический тег `vX.Y.Z` на squash merge-коммите;
-- GitHub Release с portable ZIP;
-- `.sha256` и `release-manifest.json`;
-- GitHub artifact provenance attestations;
-- встроенная проверка stable channel;
-- безопасная загрузка, staging, backup и rollback;
-- Update Center внутри Cyber Console.
+```powershell
+sysdiff compatibility status
+sysdiff compatibility status --json
+sysdiff compatibility inspect .\before.sdshot
+sysdiff compatibility inspect .\before.sdshot --json
+```
 
-### Установка из GitHub Release
+Короткий alias:
 
-Откройте [Releases](https://github.com/Onmaynec/SysDiff/releases), скачайте:
+```powershell
+sysdiff compat matrix
+sysdiff compat verify .\before.sdshot
+```
+
+Подробнее: [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
+
+## 🚀 Установка
+
+Откройте GitHub Releases и скачайте:
 
 ```text
-SysDiff-0.7.0-win-x64.zip
-SysDiff-0.7.0-win-x64.zip.sha256
+SysDiff-0.8.0-win-x64.zip
+SysDiff-0.8.0-win-x64.zip.sha256
 release-manifest.json
 ```
 
@@ -48,9 +63,9 @@ release-manifest.json
 .\sysdiff.exe
 ```
 
-Portable-пакет не требует установленного .NET Runtime.
+Portable package является self-contained и не требует установленного .NET Runtime.
 
-## 🔄 Автообновления
+## 🔄 Stable Release Channel
 
 ```powershell
 sysdiff update check
@@ -68,53 +83,13 @@ sysdiff update settings --auto-download true
 sysdiff update settings --auto-check false
 ```
 
-По умолчанию:
+По умолчанию auto-check включён, auto-download выключен, auto-install отсутствует. Установка всегда требует явного подтверждения.
 
-```text
-stable channel     ON
-auto-check         ON, не чаще раза в 24 часа
-auto-download      OFF
-auto-install       OFF и не может быть включён
-install confirm    обязательно
-```
-
-Auto-check выполняется только в обычном интерактивном режиме, ограничен коротким timeout и не блокирует запуск при недоступной сети.
-
-### Проверяемая цепочка обновления
-
-```text
-official latest release
-          ↓
-release-manifest.json
-          ↓
-product / stable / SemVer / runtime / tag / URL validation
-          ↓
-size + SHA-256 verification
-          ↓
-safe ZIP extraction
-          ↓
-staged sysdiff.exe --version
-          ↓
-explicit install confirmation
-          ↓
-wait current PID → backup → replace → verify
-          ├─ OK    → remove backup + optional restart
-          └─ FAIL  → rollback previous sysdiff.exe
-```
-
-Updater принимает asset только с официального HTTPS-пути:
-
-```text
-https://github.com/Onmaynec/SysDiff/releases/download/vX.Y.Z/...
-```
-
-Версия 0.7.0 пока не имеет Authenticode-подписи. Manifest честно содержит `unsigned: true`; GitHub provenance и SHA-256 подтверждают происхождение pipeline и целостность assets, но не выдаются за code-signing сертификат.
+Updater проверяет официальный HTTPS-путь, размер, SHA-256, staged EXE version и выполняет backup/rollback при неуспешной post-install verification.
 
 Подробнее: [docs/UPDATES.md](docs/UPDATES.md).
 
 ## 🖥️ Cyber Console
-
-Запуск панели:
 
 ```powershell
 sysdiff
@@ -126,7 +101,7 @@ sysdiff
 dotnet run --project .\src\SysDiff.Cli
 ```
 
-Cyber Control Node содержит девять модулей:
+Основные модули:
 
 ```text
 [01] Snapshot Node
@@ -141,96 +116,7 @@ Cyber Control Node содержит девять модулей:
        └─ Update Center
 ```
 
-### Command Deck
-
-| Клавиша | Действие |
-|---|---|
-| `1`…`9` | открыть модуль по номеру |
-| `P`, `B`, `A` | Snapshot Node |
-| `C` | Diff Lab |
-| `G` | Drift Operations |
-| `T` | Investigation Timeline |
-| `K` | Case Vault |
-| `W` | Watch Operations |
-| `L` | Live Signal |
-| `D` | System Node |
-| `↑` / `↓` | перемещение |
-| `Enter` | выполнить действие |
-| `Esc` | назад |
-| `F5` | обновить Control Node |
-| `Q` | завершить сессию |
-
-## 🧷 Baseline Vault
-
-Baseline — сохранённый снимок, который пользователь считает доверенным состоянием системы.
-
-```powershell
-sysdiff baseline set trusted-clean --note "После чистой установки"
-sysdiff baseline show
-sysdiff baseline clear
-```
-
-Снятие baseline не удаляет snapshot. Failed, cancelled и corrupted snapshots закрепить нельзя; partial snapshot требует явного предупреждения.
-
-## 📡 Drift Scan
-
-```text
-trusted baseline
-       ↓
-current snapshot
-       ↓
-comparison + noise filter
-       ↓
-explainable risk score
-       ↓
-HTML + JSON + timeline + active case
-```
-
-```powershell
-sysdiff drift scan
-sysdiff drift scan --profile minimal --noise Strict
-sysdiff drift scan --profile standard --noise Balanced
-```
-
-Результат содержит индекс `0–100`, уровень Stable/Notice/Elevated/High/Critical, факторы оценки, предупреждения partial providers и пути отчётов.
-
-> [!NOTE]
-> Drift Risk Score — детерминированная эвристика важности изменений, а не вероятность заражения.
-
-## 🕒 Investigation Timeline
-
-```powershell
-sysdiff timeline list
-sysdiff timeline list --limit 100
-sysdiff timeline list --kind DriftScan
-```
-
-Timeline объединяет snapshots, comparisons, Drift Scans, reports, cases и заметки baseline. Данные версий 0.1–0.5 реконструируются без перезаписи legacy tables.
-
-## 🗂️ Case Vault
-
-```powershell
-sysdiff case create "Installer audit" --description "Проверка Setup.exe" --tags installer,test
-sysdiff case list
-sysdiff case show "Installer audit"
-sysdiff case use "Installer audit"
-sysdiff case close "Installer audit"
-sysdiff case use none
-```
-
-Drift Scan автоматически связывает snapshot, comparison и HTML report с активным кейсом. Закрытие кейса не удаляет материалы.
-
-## ⚡ Анимации действий
-
-Cyber Console сохраняет:
-
-- boot sequence;
-- Action Console;
-- Provider Stream;
-- progress/scanner bars;
-- elapsed time;
-- neon green/cyan/amber/red theme;
-- маркеры `[OK]`, `[>>]`, `[--]`, `[!!]`, `[XX]`, `[//]`.
+Навигация: `1`…`9`, `↑/↓`, `Enter`, `Esc`, `F5`, `Q`. Для безопасного статического режима:
 
 ```powershell
 $env:SYSDIFF_NO_ANIMATIONS = "1"
@@ -238,44 +124,66 @@ $env:NO_COLOR = "1"
 sysdiff
 ```
 
-В CI и при redirected output интерактивное движение отключается автоматически.
-
-## ✨ Основные возможности
-
-- снимки файлов, реестра, служб, задач и автозагрузки;
-- переменные окружения и PATH;
-- Windows Firewall;
-- установленные приложения;
-- системные драйверы и SHA-256;
-- сертификаты Windows без чтения приватных ключей;
-- адаптеры, DNS, шлюзы, proxy и маршруты;
-- Process и Network Live Monitor;
-- ожидание дерева дочерних процессов;
-- `Moved` и `Renamed` detection;
-- cross-machine compare;
-- `.sdshot` с manifest и checksums;
-- investigation bundle;
-- пользовательские JSON-профили;
-- Provider SDK и явная загрузка DLL;
-- маскирование `%USERPROFILE%`;
-- Console, JSON, Markdown и автономные HTML-отчёты;
-- SQLite и portable mode;
-- stable release channel и безопасный self-update.
-
-## 🔍 Классический CLI
+## 📸 Снимки и сравнение
 
 ```powershell
-sysdiff doctor
 sysdiff snapshot create before --profile standard
+
+# Установите или запустите исследуемую программу
+
 sysdiff snapshot create after --profile standard
 sysdiff compare before after --format html --output .\report.html
-sysdiff watch .\Setup.exe --wait-for-children --timeout 900
-sysdiff live process --duration 60
-sysdiff snapshot export before --output .\before.sdshot
-sysdiff update status --json
 ```
 
-При перенаправленном `stdin` или `stdout` TUI не запускается и не загрязняет машинный вывод управляющими последовательностями.
+SysDiff собирает файлы, реестр, службы, Scheduled Tasks, автозагрузку, environment/PATH, Windows Firewall, установленные приложения, драйверы, сертификаты и network configuration.
+
+## 📡 Drift Operations
+
+```powershell
+sysdiff baseline set trusted-clean --note "После чистой установки"
+sysdiff drift scan --profile standard --noise Balanced
+sysdiff timeline list --limit 100
+sysdiff case create "Installer audit" --tags installer,test
+sysdiff case use "Installer audit"
+```
+
+Drift Scan создаёт current snapshot, comparison, explainable risk score `0–100`, HTML/JSON reports и links в active case.
+
+> Drift Risk Score — детерминированная эвристика приоритета анализа, а не вероятность заражения.
+
+## 👀 Watch и Live Monitor
+
+```powershell
+sysdiff watch .\Setup.exe --wait-for-children --timeout 900
+sysdiff live process --duration 60
+sysdiff live network --duration 60
+```
+
+Live Monitor не внедряется в процессы, не завершает их, не читает содержимое сетевого трафика и не меняет firewall/network configuration.
+
+## 📦 Переносимые расследования
+
+```powershell
+sysdiff snapshot export before --output .\before.sdshot
+sysdiff compatibility inspect .\before.sdshot
+sysdiff snapshot import .\before.sdshot
+```
+
+`.sdshot` содержит manifest, snapshot JSON и SHA-256. Investigation bundle объединяет снимки и готовые отчёты. Неизвестная более новая schema не импортируется частично.
+
+Подробнее: [docs/PORTABLE_FORMATS.md](docs/PORTABLE_FORMATS.md).
+
+## 🧩 Provider SDK
+
+Внешние providers загружаются только явно:
+
+```powershell
+sysdiff --plugin .\MyProvider.dll snapshot create custom
+```
+
+SDK проверяет совместимую версию контракта. Автоматического поиска DLL и выполнения найденных системных строк нет.
+
+Подробнее: [docs/PROVIDER_SDK.md](docs/PROVIDER_SDK.md).
 
 ## 🛠️ Сборка
 
@@ -295,66 +203,55 @@ dotnet build SysDiff.sln --configuration Release
 dotnet test SysDiff.sln --configuration Release
 ```
 
-Portable release package:
+Portable package:
 
 ```powershell
-.\scripts\package.ps1 -Version 0.7.0
+.\scripts\package.ps1 -Version 0.8.0
+.\scripts\smoke-test.ps1 -ExpectedVersion 0.8.0
 ```
 
 Результат:
 
 ```text
-artifacts\SysDiff-0.7.0-win-x64.zip
-artifacts\SysDiff-0.7.0-win-x64.zip.sha256
+artifacts\SysDiff-0.8.0-win-x64.zip
+artifacts\SysDiff-0.8.0-win-x64.zip.sha256
 artifacts\release-manifest.json
 ```
 
-## 🏷️ Полноценный release pipeline
+## 🏷️ Release pipeline
 
-Release workflow запускается при переводе release PR в Ready for review, ждёт squash merge и затем:
+Release PR использует ветку `agent/sysdiff-vX.Y.Z`. После Ready for review workflow ждёт squash merge и затем:
 
-1. получает merge commit;
-2. сверяет версию ветки и `.csproj`;
-3. запускает полный test suite;
-4. собирает portable ZIP;
-5. выполняет smoke-test;
-6. валидирует manifest и SHA-256;
-7. создаёт аннотированный tag;
-8. публикует provenance attestations;
-9. создаёт latest GitHub Release;
-10. проверяет наличие всех assets.
+1. сверяет branch/version;
+2. запускает полный test suite;
+3. собирает self-contained package;
+4. выполняет smoke-test;
+5. валидирует manifest и SHA-256;
+6. создаёт аннотированный tag;
+7. публикует provenance attestations;
+8. создаёт latest GitHub Release;
+9. проверяет release assets.
 
-Повторный запуск для существующего tag не создаёт дубликат release.
-
-## 🗃️ Совместимость базы
-
-0.7.0 не меняет таблицы snapshot/comparison/investigation. Update settings и cache хранятся отдельно в data directory:
-
-```text
-update-settings.json
-update-state.json
-updates\
-```
-
-Updater не удаляет `sysdiff.db`, snapshots, cases, reports, logs или пользовательские profiles.
+Повторный запуск существующего tag является безопасным no-op.
 
 ## 🔐 Безопасность
 
 - данные хранятся локально;
-- notes, tags, paths и captured commands считаются данными и не выполняются;
-- baseline не запускает автоматический rollback;
-- Drift Scan не изменяет систему;
-- Live Monitor не завершает процессы и не читает содержимое трафика;
+- providers выполняют только заранее определённое чтение;
+- notes, tags, paths и captured commands считаются данными;
+- приватные ключи сертификатов не читаются;
 - плагины загружаются только через явный `--plugin`;
-- release manifest имеет строгий allow-list host/path;
-- ZIP защищён от path traversal и size bomb;
-- installer helper использует отдельные параметры и `-LiteralPath`;
-- update install создаёт backup и выполняет rollback;
+- `.sdshot` защищён от path traversal, duplicate entries, excessive size и checksum tampering;
+- inspection не изменяет SQLite, baseline или active case;
+- updater ограничивает host/path, проверяет hash и восстанавливает backup;
 - опасные действия требуют подтверждения;
 - `Ctrl+C` корректно отменяет длительные операции.
 
+Версия 0.8.0 пока не имеет Authenticode code-signing сертификата. Release manifest честно содержит `unsigned=true`; SHA-256 и GitHub provenance подтверждают целостность и происхождение pipeline, но не заменяют Authenticode.
+
 ## 📚 Документация
 
+- [Совместимость и schema policy](docs/COMPATIBILITY.md)
 - [Обновления и Release Channel](docs/UPDATES.md)
 - [Drift Operations](docs/DRIFT_OPERATIONS.md)
 - [Cyber Console](docs/TERMINAL_UI.md)
@@ -375,9 +272,9 @@ Updater не удаляет `sysdiff.db`, snapshots, cases, reports, logs или
 - защищённые области требуют администратора;
 - большие профили могут содержать сотни тысяч объектов;
 - risk score зависит от полноты providers;
-- baseline является выбранной пользователем точкой доверия;
-- Authenticode code signing пока не настроен;
-- self-update доступен только для опубликованного `sysdiff.exe`, не для `dotnet run`;
+- текущая `.sdshot` schema `1` ещё не объявлена стабильной публичной schema 1.0;
+- automatic migration неизвестных snapshots не выполняется;
+- self-update доступен только опубликованному `sysdiff.exe`, не `dotnet run`;
 - SysDiff не заменяет EDR, антивирус или ручную экспертизу.
 
 ## 📜 Лицензия
@@ -388,6 +285,6 @@ Updater не удаляет `sysdiff.db`, snapshots, cases, reports, logs или
 
 <div align="center">
 
-**SysDiff 0.7.0 — tagged releases, verified updates and rollback-safe installation.**
+**SysDiff 0.8.0 — inspect compatibility before import.**
 
 </div>
