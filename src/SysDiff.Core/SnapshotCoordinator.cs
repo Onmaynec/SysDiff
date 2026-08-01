@@ -32,6 +32,9 @@ public sealed class SnapshotCoordinator
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        string machineFingerprint = MachineIdentity.CreateFingerprint();
+        string windowsBuild = Environment.OSVersion.Version.ToString();
+        string architecture = Environment.Is64BitOperatingSystem ? "x64" : "x86";
 
         var snapshot = new SnapshotRecord
         {
@@ -39,8 +42,9 @@ public sealed class SnapshotCoordinator
             ProfileName = profile.Name,
             Status = SnapshotStatus.InProgress,
             WindowsEdition = RuntimeInformation.OSDescription,
-            WindowsBuild = Environment.OSVersion.Version.ToString(),
-            MachineFingerprint = MachineIdentity.CreateFingerprint()
+            WindowsBuild = windowsBuild,
+            Architecture = architecture,
+            MachineFingerprint = machineFingerprint
         };
 
         await _store.SaveSnapshotAsync(snapshot, cancellationToken);
@@ -116,6 +120,25 @@ public sealed class SnapshotCoordinator
                 results.Add(result);
                 artifacts.AddRange(result.Artifacts);
             }
+
+            artifacts.Add(new SystemArtifact
+            {
+                ProviderId = "sysdiff",
+                ArtifactType = "SnapshotMachineMetadata",
+                Identity = "sysdiff://snapshot/machine",
+                DisplayName = "Источник снимка",
+                Properties = new Dictionary<string, ArtifactValue>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["MachineFingerprint"] = ArtifactValue.From(machineFingerprint),
+                    ["WindowsBuild"] = ArtifactValue.From(windowsBuild),
+                    ["Architecture"] = ArtifactValue.From(architecture)
+                },
+                Tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    "Metadata",
+                    "PrivacySafe"
+                }
+            });
 
             SnapshotStatus finalStatus = results.Any(x => x.Status is ProviderStatus.Failed or ProviderStatus.Partial)
                 ? SnapshotStatus.Partial
