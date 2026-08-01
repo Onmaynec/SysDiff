@@ -97,12 +97,15 @@ jobs:
         shell: pwsh
         run: |
           $tag = "${{ steps.version.outputs.tag }}"
-          gh release view $tag --repo "${{ github.repository }}" *> $null
-          if ($LASTEXITCODE -eq 0) {
+          $null = gh release view $tag --repo "${{ github.repository }}" --json tagName 2>$null
+          $exists = $LASTEXITCODE -eq 0
+          $global:LASTEXITCODE = 0
+          if ($exists) {
             Write-Host "Release $tag уже существует. Повторная публикация не нужна."
             "skip=true" >> $env:GITHUB_OUTPUT
           }
           else {
+            Write-Host "Release $tag ещё не существует. Продолжаем публикацию."
             "skip=false" >> $env:GITHUB_OUTPUT
           }
 
