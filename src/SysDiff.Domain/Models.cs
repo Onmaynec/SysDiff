@@ -65,6 +65,8 @@ public sealed record ProviderSnapshotResult
 
 public sealed record SnapshotRecord
 {
+    private string? _machineFingerprint;
+
     public Guid Id { get; init; } = Guid.NewGuid();
 
     public required string Name { get; init; }
@@ -85,7 +87,14 @@ public sealed record SnapshotRecord
 
     public string Architecture { get; init; } = Environment.Is64BitOperatingSystem ? "x64" : "x86";
 
-    public string? MachineFingerprint { get; init; }
+    public string? MachineFingerprint
+    {
+        get => _machineFingerprint
+            ?? Artifacts.FirstOrDefault(x =>
+                x.Identity.Equals("sysdiff://snapshot/machine", StringComparison.OrdinalIgnoreCase))?
+                .Properties.GetValueOrDefault("MachineFingerprint")?.Value;
+        init => _machineFingerprint = value;
+    }
 
     public string? Comment { get; init; }
 
