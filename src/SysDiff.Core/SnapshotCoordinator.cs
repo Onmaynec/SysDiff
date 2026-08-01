@@ -8,15 +8,18 @@ public sealed class SnapshotCoordinator
 {
     private readonly IReadOnlyDictionary<string, ISnapshotProvider> _providers;
     private readonly ISnapshotStore _store;
+    private readonly PrivacyRedactor _privacyRedactor;
     private readonly ILogger<SnapshotCoordinator> _logger;
 
     public SnapshotCoordinator(
         IEnumerable<ISnapshotProvider> providers,
         ISnapshotStore store,
+        PrivacyRedactor privacyRedactor,
         ILogger<SnapshotCoordinator> logger)
     {
         _providers = providers.ToDictionary(x => x.Id, StringComparer.OrdinalIgnoreCase);
         _store = store;
+        _privacyRedactor = privacyRedactor;
         _logger = logger;
     }
 
@@ -36,7 +39,8 @@ public sealed class SnapshotCoordinator
             ProfileName = profile.Name,
             Status = SnapshotStatus.InProgress,
             WindowsEdition = RuntimeInformation.OSDescription,
-            WindowsBuild = Environment.OSVersion.Version.ToString()
+            WindowsBuild = Environment.OSVersion.Version.ToString(),
+            MachineFingerprint = MachineIdentity.CreateFingerprint()
         };
 
         await _store.SaveSnapshotAsync(snapshot, cancellationToken);
@@ -88,6 +92,7 @@ public sealed class SnapshotCoordinator
                             Progress = progress
                         },
                         cancellationToken);
+                    result = _privacyRedactor.RedactResult(result);
                 }
                 catch (OperationCanceledException)
                 {
@@ -103,7 +108,7 @@ public sealed class SnapshotCoordinator
                         Status = ProviderStatus.Failed,
                         StartedAtUtc = DateTimeOffset.UtcNow,
                         FinishedAtUtc = DateTimeOffset.UtcNow,
-                        Errors = [exception.Message],
+                        Errors = [_privacyRedactor.Redact(exception.Message)],
                         RequiresAdministrator = provider.RequiresAdministrator
                     };
                 }
