@@ -15,5 +15,5 @@ public sealed class SysDiffProviderPluginAttribute : Attribute
 
     public string SdkVersion { get; }
 
-    public string? DisplayName { get; init; }
+    public string? DisplayName { get; set; }
 }
