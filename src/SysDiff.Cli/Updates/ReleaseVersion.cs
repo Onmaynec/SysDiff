@@ -31,7 +31,7 @@ public sealed class ReleaseVersion : IComparable<ReleaseVersion>, IEquatable<Rel
             throw new FormatException($"Некорректная версия SemVer: {value}");
         }
 
-        return result;
+        return result!;
     }
 
     public static bool TryParse(string? value, out ReleaseVersion? result)
