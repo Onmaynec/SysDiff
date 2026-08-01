@@ -37,6 +37,10 @@ internal static class Program
         bool interactiveLaunch = cleanArgs.Length == 0 && TerminalCapabilities.IsInteractive;
         var services = new ServiceCollection();
         services.AddSingleton(paths);
+        services.AddSingleton(_ => new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(20)
+        });
         services.AddLogging(builder =>
         {
             builder.SetMinimumLevel(interactiveLaunch ? LogLevel.Error : LogLevel.Information);
@@ -86,11 +90,15 @@ internal static class Program
         services.AddSingleton<NetworkLiveMonitor>();
         services.AddSingleton<InvestigationBundleService>();
         services.AddSingleton<DriftOperationsService>();
+        services.AddSingleton<UpdateSettingsStore>();
+        services.AddSingleton<UpdateService>();
+        services.AddSingleton<UpdateInstaller>();
         services.AddSingleton<TerminalRenderer>();
         services.AddSingleton<TerminalControlCenter>();
         services.AddSingleton<V3CommandRouter>();
         services.AddSingleton<V4CommandRouter>();
         services.AddSingleton<V6CommandRouter>();
+        services.AddSingleton<V7CommandRouter>();
         services.AddSingleton<CommandApp>();
 
         await using ServiceProvider provider = services.BuildServiceProvider();
@@ -99,6 +107,19 @@ internal static class Program
         await store.InitializeAsync(CancellationToken.None);
         IInvestigationStore investigationStore = provider.GetRequiredService<IInvestigationStore>();
         await investigationStore.InitializeAsync(CancellationToken.None);
+
+        if (interactiveLaunch && !IsContinuousIntegration())
+        {
+            using var autoUpdateTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try
+            {
+                await provider.GetRequiredService<UpdateService>()
+                    .TryAutoCheckAsync(autoUpdateTimeout.Token);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
 
         using var cancellation = new CancellationTokenSource();
         Console.CancelKeyPress += (_, eventArgs) =>
@@ -110,7 +131,7 @@ internal static class Program
         try
         {
             CommandApp fallback = provider.GetRequiredService<CommandApp>();
-            return await provider.GetRequiredService<V6CommandRouter>()
+            return await provider.GetRequiredService<V7CommandRouter>()
                 .RunAsync(cleanArgs, fallback, cancellation.Token);
         }
         catch (OperationCanceledException)
@@ -134,4 +155,8 @@ internal static class Program
             return 1;
         }
     }
+
+    private static bool IsContinuousIntegration() =>
+        Environment.GetEnvironmentVariable("CI")?.Equals("true", StringComparison.OrdinalIgnoreCase) == true
+        || Environment.GetEnvironmentVariable("GITHUB_ACTIONS")?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
 }
