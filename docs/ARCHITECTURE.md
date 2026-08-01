@@ -1,89 +1,101 @@
-# 🏗️ Архитектура SysDiff 0.3
+# 🏗️ Архитектура SysDiff 0.4.0
 
-## Принципы
+## Цель
 
-- Windows-сбор данных отделён от сравнения, хранения и отчётов;
-- ошибка одного провайдера не уничтожает снимок;
-- системные строки всегда считаются данными;
-- SQLite schema 1 остаётся совместимой с 0.1/0.2;
-- новые функции расследования изолированы от стабильного CLI.
+SysDiff отделяет сбор и анализ Windows-данных от способа управления. Terminal Control Center и классический CLI используют одни и те же Domain/Core/Storage/Providers/Reporting services.
 
 ## Слои
 
 ```text
-SysDiff.Domain
-  └─ модели, enum, интерфейсы, LiveEvent
-
-SysDiff.Core
-  ├─ SnapshotCoordinator
-  ├─ ComparisonEngine
-  ├─ SeverityEngine / NoiseFilterEngine
-  ├─ ProfileCatalog / ProfileLoader
-  ├─ PrivacyRedactor
-  └─ MachineIdentity
-
-SysDiff.Providers
-  ├─ filesystem / registry / services / tasks
-  ├─ startup / environment / firewall / apps
-  ├─ drivers / certificates
-  └─ network-configuration
-
-SysDiff.Storage
-  ├─ SqliteSnapshotStore
-  └─ SnapshotArchiveService (.sdshot)
-
-SysDiff.Reporting
-  └─ Console / JSON / Markdown / HTML
-
-SysDiff.ProviderSdk
-  └─ явный контракт внешних providers
-
-SysDiff.Cli
-  ├─ CommandApp (стабильные команды)
-  ├─ V3CommandRouter
-  ├─ ProcessLiveMonitor / NetworkLiveMonitor
-  ├─ InvestigationBundleService
-  └─ PluginProviderLoader
+Terminal Control Center        Non-interactive CLI
+          │                            │
+          └──────────┬─────────────────┘
+                     ▼
+              Application workflows
+                     │
+      ┌──────────────┼─────────────────┐
+      ▼              ▼                 ▼
+SnapshotCoordinator  ComparisonEngine  Live monitors
+      │              │                 │
+      ▼              ▼                 ▼
+ISnapshotProvider[]  Severity/Noise    Process/Network polling
+      │
+      ▼
+SQLite Store ── .sdshot / bundle ── Reporting
 ```
 
-## Снимок
+## Terminal Control Center
 
-`SnapshotCoordinator` запускает providers последовательно, маскирует пути через `PrivacyRedactor` и добавляет privacy-safe metadata artifact:
+### `V4CommandRouter`
 
-```text
-sysdiff://snapshot/machine
-```
+Перехватывает только:
 
-Он содержит SHA-256 fingerprint, Windows build и архитектуру. Открытое имя компьютера не сохраняется.
+- запуск без аргументов;
+- `--version`;
+- `--tui-smoke`;
+- дополнение `--help`.
 
-## Сравнение
+Все остальные команды делегируются `V3CommandRouter`, поэтому функциональность 0.1–0.3 остаётся совместимой.
 
-1. Объекты сопоставляются по `Identity`.
-2. Формируются `Added`, `Removed`, `Modified`.
-3. Уникальная removed/added пара файлов с одинаковыми SHA-256 и размером может стать `Moved` или `Renamed`.
-4. Неоднозначные пары остаются без эвристического объединения.
-5. `SeverityEngine` добавляет важность.
-6. `NoiseFilterEngine` скрывает шум только при отображении.
-7. Cross-machine режим снижает confidence и добавляет предупреждения.
+### `TerminalControlCenter`
 
-## Live Monitor
+Координирует интерактивные экраны:
 
-Process monitor использует Toolhelp + polling. Network monitor сравнивает соседние состояния `IPGlobalProperties`. Оба режима:
+- Snapshot Center;
+- Comparison Lab;
+- Watch Session;
+- Live Monitor;
+- Reports & Bundles;
+- Diagnostics;
+- Settings/About.
 
-- не устанавливают драйвер;
-- не внедряются в процессы;
-- не изменяют сеть;
-- поддерживают `CancellationToken`;
-- ограничивают число событий.
+Класс вызывает существующие application services напрямую и не дублирует storage/provider logic.
 
-## Переносимые форматы
+### `TerminalRenderer`
 
-`SnapshotArchiveService` формирует `.sdshot` с manifest и checksums. `InvestigationBundleService` объединяет два снимка и отчёты. Архивы не выполняются и проверяются до импорта.
+Отвечает только за представление:
 
-## Provider SDK
+- ASCII logo;
+- wide/compact layout;
+- панели и таблицы;
+- цветовые статусы;
+- prompts со стрелками;
+- spinner и progress line;
+- восстановление состояния консоли.
 
-Плагин загружается только по явному `--plugin`. Проверяются assembly attribute, версия SDK и реализация `ISnapshotProvider`. Плагин работает с правами SysDiff, поэтому автоматическая загрузка запрещена.
+### `TerminalMenuNavigator`
+
+Чистая модель навигации, не зависящая от Console. Она покрыта unit tests и реализует wrap-around для `↑/↓`, а также действия hotkeys.
+
+### `TerminalCapabilities`
+
+Решает, можно ли запускать интерактивную панель. TUI запрещён, когда:
+
+- `stdin` перенаправлен;
+- `stdout` перенаправлен;
+- процесс не является интерактивным.
+
+Это сохраняет чистый вывод CLI в CI и PowerShell pipelines.
 
 ## Совместимость
 
-Новые machine metadata хранятся как обычный artifact, поэтому таблицы SQLite не меняются. Поле `MachineFingerprint` восстанавливается из artifact при чтении старой базы.
+`V4CommandRouter → V3CommandRouter → CommandApp` образует последовательный compatibility chain. Новые версии могут добавлять команды, не переписывая стабильные маршруты предыдущих версий.
+
+## Состояние консоли
+
+`ConsoleSession` реализует `IDisposable` и восстанавливает foreground/background color и видимость курсора. Внешние исключения обрабатываются в `Program`, после чего session уже освобождена.
+
+## Длительные операции
+
+- snapshot capture передаёт `IProgress<SnapshotProgress>`;
+- import/export/report/bundle выполняются под spinner;
+- Watch Session отображает отдельные этапы;
+- logger в interactive launch ограничивается `Error`, чтобы не повреждать layout;
+- CLI launch сохраняет обычный уровень логирования.
+
+## Тестирование
+
+- Core/Providers tests проверяют анализ;
+- Cli tests проверяют навигацию и interactive capability;
+- `--tui-smoke` проверяет создание preview без чтения клавиатуры;
+- Windows build публикует self-contained `win-x64` и запускает smoke-test.

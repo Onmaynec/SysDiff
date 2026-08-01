@@ -34,11 +34,12 @@ internal static class Program
             return 2;
         }
 
+        bool interactiveLaunch = cleanArgs.Length == 0 && TerminalCapabilities.IsInteractive;
         var services = new ServiceCollection();
         services.AddSingleton(paths);
         services.AddLogging(builder =>
         {
-            builder.SetMinimumLevel(LogLevel.Information);
+            builder.SetMinimumLevel(interactiveLaunch ? LogLevel.Error : LogLevel.Information);
             builder.AddSimpleConsole(options =>
             {
                 options.SingleLine = true;
@@ -81,7 +82,10 @@ internal static class Program
         services.AddSingleton<ProcessLiveMonitor>();
         services.AddSingleton<NetworkLiveMonitor>();
         services.AddSingleton<InvestigationBundleService>();
+        services.AddSingleton<TerminalRenderer>();
+        services.AddSingleton<TerminalControlCenter>();
         services.AddSingleton<V3CommandRouter>();
+        services.AddSingleton<V4CommandRouter>();
         services.AddSingleton<CommandApp>();
 
         await using ServiceProvider provider = services.BuildServiceProvider();
@@ -99,7 +103,7 @@ internal static class Program
         try
         {
             CommandApp fallback = provider.GetRequiredService<CommandApp>();
-            return await provider.GetRequiredService<V3CommandRouter>()
+            return await provider.GetRequiredService<V4CommandRouter>()
                 .RunAsync(cleanArgs, fallback, cancellation.Token);
         }
         catch (OperationCanceledException)

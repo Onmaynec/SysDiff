@@ -1,42 +1,55 @@
 # 🗺️ Roadmap SysDiff
 
-Roadmap отражает направление развития. Каждая незавершённая задача оформлена отдельным GitHub Issue с критериями готовности.
+Roadmap отражает направление проекта, а не обещание конкретной даты.
 
 ## 0.1.0 — ядро MVP ✅
 
-- [x] снимки и SQLite;
-- [x] Added/Removed/Modified;
-- [x] основные Windows-провайдеры;
-- [x] severity, noise filters и отчёты;
-- [x] TUI, portable package, tests и CI.
+- [x] снимки, SQLite и сравнение;
+- [x] базовые Windows providers;
+- [x] Console/JSON/Markdown/HTML;
+- [x] portable package, tests и GitHub Actions.
 
 ## 0.2.0 — расширение покрытия ✅
 
-- [x] FirewallProvider;
-- [x] InstalledAppsProvider;
-- [x] DriversProvider;
-- [x] CertificatesProvider;
-- [x] улучшенный `watch`;
-- [x] новые severity/noise rules.
+- [x] Firewall, приложения, драйверы и сертификаты;
+- [x] ожидание дерева процессов;
+- [x] дополнительные severity/noise rules.
 
 ## 0.3.0 — расследования ✅
 
-- [x] live process monitor — #3;
-- [x] сетевые события и NetworkConfigurationProvider — #4;
-- [x] portable investigation bundle — #5;
-- [x] экспорт и импорт `.sdshot` — #6;
-- [x] пользовательские профили — #7;
-- [x] сравнение снимков разных компьютеров — #8;
-- [x] обнаружение перемещений и переименований — #9;
-- [x] Provider SDK — #10;
-- [x] автоматическое маскирование `%USERPROFILE%` — #11.
+- [x] live process/network monitor;
+- [x] network configuration provider;
+- [x] `.sdshot` и investigation bundle;
+- [x] пользовательские профили;
+- [x] cross-machine compare;
+- [x] move/rename detection;
+- [x] Provider SDK;
+- [x] privacy redaction.
+
+## 0.4.0 — Terminal Control Center ✅
+
+- [x] полноэкранный dashboard;
+- [x] навигация стрелками;
+- [x] ASCII-логотип и цветовые панели;
+- [x] Snapshot Center;
+- [x] Comparison Lab и Change Explorer;
+- [x] Watch Session;
+- [x] интерактивный Live Monitor;
+- [x] Reports & Bundles;
+- [x] spinner/progress animations;
+- [x] compact layout;
+- [x] восстановление состояния консоли;
+- [x] TUI tests и smoke frame;
+- [x] сохранение non-interactive CLI.
 
 ## 1.0.0 — стабильность
 
-- [ ] стабильная схема данных — #12;
-- [ ] миграции между версиями — #13;
-- [ ] подписанные релизы и attestations — #14;
-- [ ] безопасные rollback preview/handlers — #15;
-- [ ] оптимизация снимков с миллионами объектов — #16;
-- [ ] полная локализация RU/EN — #17;
-- [ ] документированная обратная совместимость — #18.
+- [ ] стабильная схема данных;
+- [ ] миграции между версиями;
+- [ ] подписанные релизы и attestations;
+- [ ] безопасный rollback preview/handlers;
+- [ ] оптимизация снимков с миллионами объектов;
+- [ ] полная локализация RU/EN;
+- [ ] документированная обратная совместимость.
+
+Актуальные задачи находятся в [GitHub Issues](https://github.com/Onmaynec/SysDiff/issues).

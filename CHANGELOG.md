@@ -1,6 +1,6 @@
 # 📝 История изменений
 
-Все заметные изменения SysDiff документируются здесь. Формат основан на Keep a Changelog, версии следуют Semantic Versioning.
+Все заметные изменения SysDiff документируются здесь. Версии следуют Semantic Versioning.
 
 ## [Не выпущено]
 
@@ -13,44 +13,59 @@
 - оптимизация больших снимков;
 - полная локализация RU/EN.
 
+## [0.4.0] — 2026-08-01
+
+### Добавлено
+
+- полноэкранный `Terminal Control Center` при запуске `sysdiff` без аргументов;
+- ASCII-логотип и профессиональная Windows CLI-компоновка;
+- управление `↑/↓`, `Enter`, `Esc`, `/`, `F`, `S`, `R`, `E`, `F5`, `Q`;
+- компактный режим для узкого терминала;
+- Snapshot Center с созданием, просмотром, экспортом, импортом и удалением;
+- Comparison Lab с overview, Change Explorer, поиском, фильтром и сортировкой;
+- пошаговый Watch Session;
+- интерактивный Process/Network Live Monitor;
+- Reports & Bundles center;
+- Diagnostics screen;
+- spinner и snapshot progress animations;
+- `--tui-smoke` для CI;
+- отдельные TUI unit tests;
+- SVG-preview панели в README.
+
+### Изменено
+
+- обычный CLI сохранён для автоматизации, но больше не является единственным интерфейсом;
+- interactive launch подавляет console logger, чтобы не ломать панели;
+- версия EXE, снимков и portable package обновлена до `0.4.0`.
+
+### Безопасность
+
+- TUI не запускается при redirected stdin/stdout;
+- состояние цветов и курсора восстанавливается через `IDisposable`;
+- Watch timeout не завершает процессы;
+- Live Monitor не читает содержимое трафика;
+- опасные удаления требуют подтверждения.
+
 ## [0.3.0] — 2026-08-01
 
 ### Добавлено
 
-- live process monitor с событиями `Started`/`Stopped`;
-- live network monitor для TCP/UDP endpoints без чтения трафика;
-- `NetworkConfigurationProvider` для adapters, DNS, gateways, proxy и routes;
-- экспорт и импорт `.sdshot` с manifest и SHA-256;
-- portable investigation bundle с двумя снимками и HTML/JSON/Markdown-отчётами;
-- пользовательские JSON-профили;
-- межмашинное сравнение с предупреждениями и сниженным confidence;
-- обнаружение уникальных перемещений и переименований файлов;
-- Provider SDK, проверка версии SDK и sample plugin;
-- явный параметр `--plugin`;
-- автоматическое маскирование `%USERPROFILE%`;
-- анонимный machine fingerprint;
-- автоматическая очистка слитых рабочих веток.
-
-### Безопасность
-
-- `.sdshot` проверяет структуру, размеры, path traversal и checksums;
-- плагины не загружаются автоматически;
-- live monitor не останавливает процессы и не перехватывает пакеты;
-- investigation bundle не содержит приватные ключи и сырые логи;
-- неоднозначные совпадения файлов не объединяются эвристически.
+- live process/network monitor;
+- network configuration provider;
+- `.sdshot`, investigation bundle и custom profiles;
+- cross-machine compare, move/rename и Provider SDK;
+- автоматическое маскирование `%USERPROFILE%`.
 
 ## [0.2.0] — 2026-08-01
 
 ### Добавлено
 
 - Windows Firewall, установленные приложения, драйверы и сертификаты;
-- ожидание дочерних процессов и тайм-аут `watch`;
-- дополнительные правила важности и подавления шума.
+- ожидание дочерних процессов и timeout `watch`.
 
 ## [0.1.0] — 2026-08-01
 
 ### Добавлено
 
 - архитектура Domain/Core/Storage/Providers/Reporting/CLI;
-- снимки файловой системы, реестра, служб, задач, автозагрузки и окружения;
-- SQLite, Added/Removed/Modified, отчёты, TUI, portable package, тесты и CI.
+- снимки, сравнение, отчёты, portable package, tests и CI.

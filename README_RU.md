@@ -1,39 +1,32 @@
 <div align="center">
 
-<img src="assets/logo.svg" alt="SysDiff — Узнай, что изменилось в Windows" width="720">
+<img src="assets/logo.svg" alt="SysDiff" width="720">
 
 # 🇷🇺 Русская документация SysDiff
 
-**Основной [`README.md`](README.md) полностью написан на русском языке и является актуальной точкой входа.**
+**Основной [`README.md`](README.md) полностью написан на русском и описывает актуальную версию 0.4.0.**
 
 </div>
 
-## 🔎 SysDiff 0.3.0
+## 🖥️ Главное изменение 0.4.0
 
-Версия для локальных расследований добавляет:
+SysDiff теперь запускается как полноценная терминальная утилита с собственной панелью:
 
-- 🔴 live monitor процессов;
-- 🌐 live monitor сетевых endpoints;
-- 📡 снимки adapters, DNS, gateways, proxy и routes;
-- 📦 переносимый формат `.sdshot`;
-- 🧳 investigation bundle;
-- 🎛️ пользовательские JSON-профили;
-- 🖥️ межмашинное сравнение;
-- ↔️ обнаружение перемещений и переименований;
-- 🧩 Provider SDK с явной загрузкой плагинов;
-- 🕶️ автоматическое маскирование `%USERPROFILE%`.
+```powershell
+sysdiff
+```
+
+Доступны ASCII-логотип, стрелочная навигация, Snapshot Center, Comparison Lab, Watch Session, Live Monitor, Reports & Bundles, Diagnostics и анимации длительных операций.
 
 ## 📚 Разделы
 
-- [Главная страница и быстрый старт](README.md)
+- [Главная страница](README.md)
+- [Terminal Control Center](docs/TERMINAL_UI.md)
 - [Команды](docs/COMMANDS.md)
 - [Архитектура](docs/ARCHITECTURE.md)
 - [Провайдеры](docs/PROVIDERS.md)
-- [Live Monitor](docs/LIVE_MONITOR.md)
 - [Переносимые форматы](docs/PORTABLE_FORMATS.md)
 - [Provider SDK](docs/PROVIDER_SDK.md)
-- [Конфигурация](docs/CONFIGURATION.md)
-- [Отчёты](docs/REPORTS.md)
 - [Конфиденциальность](docs/PRIVACY.md)
 - [Безопасность](docs/SECURITY.md)
 - [Решение проблем](docs/TROUBLESHOOTING.md)
@@ -41,4 +34,4 @@
 - [История изменений](CHANGELOG.md)
 
 > [!IMPORTANT]
-> SysDiff не является антивирусом и не выносит вердикт о вредоносности найденных изменений.
+> SysDiff не является антивирусом и не выносит вердикт о вредоносности.

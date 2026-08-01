@@ -1,0 +1,142 @@
+namespace SysDiff.Cli;
+
+public enum TerminalNavigationAction
+{
+    None,
+    Activate,
+    Back,
+    Exit,
+    Search,
+    Filter,
+    Sort,
+    ToggleRaw,
+    Export,
+    Refresh
+}
+
+public sealed class TerminalMenuNavigator
+{
+    public TerminalMenuNavigator(int itemCount, int selectedIndex = 0)
+    {
+        if (itemCount <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(itemCount));
+        }
+
+        ItemCount = itemCount;
+        SelectedIndex = Math.Clamp(selectedIndex, 0, itemCount - 1);
+    }
+
+    public int ItemCount { get; }
+
+    public int SelectedIndex { get; private set; }
+
+    public TerminalNavigationAction Apply(ConsoleKey key)
+    {
+        switch (key)
+        {
+            case ConsoleKey.UpArrow:
+                SelectedIndex = (SelectedIndex - 1 + ItemCount) % ItemCount;
+                return TerminalNavigationAction.None;
+            case ConsoleKey.DownArrow:
+                SelectedIndex = (SelectedIndex + 1) % ItemCount;
+                return TerminalNavigationAction.None;
+            case ConsoleKey.Home:
+                SelectedIndex = 0;
+                return TerminalNavigationAction.None;
+            case ConsoleKey.End:
+                SelectedIndex = ItemCount - 1;
+                return TerminalNavigationAction.None;
+            case ConsoleKey.Enter:
+            case ConsoleKey.Spacebar:
+                return TerminalNavigationAction.Activate;
+            case ConsoleKey.Escape:
+            case ConsoleKey.Backspace:
+                return TerminalNavigationAction.Back;
+            case ConsoleKey.Q:
+                return TerminalNavigationAction.Exit;
+            case ConsoleKey.Oem2:
+            case ConsoleKey.Divide:
+                return TerminalNavigationAction.Search;
+            case ConsoleKey.F:
+                return TerminalNavigationAction.Filter;
+            case ConsoleKey.S:
+                return TerminalNavigationAction.Sort;
+            case ConsoleKey.R:
+                return TerminalNavigationAction.ToggleRaw;
+            case ConsoleKey.E:
+                return TerminalNavigationAction.Export;
+            case ConsoleKey.F5:
+                return TerminalNavigationAction.Refresh;
+            default:
+                return TerminalNavigationAction.None;
+        }
+    }
+
+    public void SetSelectedIndex(int selectedIndex) =>
+        SelectedIndex = Math.Clamp(selectedIndex, 0, ItemCount - 1);
+}
+
+public static class TerminalCapabilities
+{
+    public static bool ShouldUseInteractive(
+        bool inputRedirected,
+        bool outputRedirected,
+        bool userInteractive) =>
+        userInteractive && !inputRedirected && !outputRedirected;
+
+    public static bool IsInteractive => ShouldUseInteractive(
+        Console.IsInputRedirected,
+        Console.IsOutputRedirected,
+        Environment.UserInteractive);
+
+    public static int GetSafeWindowWidth()
+    {
+        try
+        {
+            return Math.Max(40, Console.WindowWidth - 1);
+        }
+        catch (IOException)
+        {
+            return 100;
+        }
+        catch (PlatformNotSupportedException)
+        {
+            return 100;
+        }
+    }
+
+    public static int GetSafeWindowHeight()
+    {
+        try
+        {
+            return Math.Max(18, Console.WindowHeight);
+        }
+        catch (IOException)
+        {
+            return 30;
+        }
+        catch (PlatformNotSupportedException)
+        {
+            return 30;
+        }
+    }
+}
+
+internal sealed record TerminalMenuItem(
+    string Id,
+    string Title,
+    string Description,
+    string Glyph);
+
+internal sealed class InlineProgress<T> : IProgress<T>
+{
+    private readonly Action<T> _handler;
+
+    public InlineProgress(Action<T> handler)
+    {
+        _handler = handler ?? throw new ArgumentNullException(nameof(handler));
+    }
+
+    public void Report(T value) => _handler(value);
+}
