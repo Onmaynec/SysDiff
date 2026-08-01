@@ -49,6 +49,7 @@ internal sealed partial class TerminalRenderer
                 width,
                 CyberTheme.Secondary);
             WriteLine($"DATA CHANNEL > {state.DataDirectory}", width, CyberTheme.Muted);
+            WriteLine($"DRIFT CHANNEL > BASELINE:{state.BaselineName ?? "NOT SET"} // CASE:{state.ActiveCaseName ?? "NONE"} // RISK:{(state.LastRiskScore is null ? "---" : state.LastRiskScore.Value.ToString("000"))}/100", width, state.LastRiskScore >= 65 ? CyberTheme.Error : state.LastRiskScore >= 35 ? CyberTheme.Warning : CyberTheme.Secondary);
             Separator(width);
             WriteLine("COMMAND DECK // SELECT MODULE", width, CyberTheme.Accent, centered: true);
 
@@ -66,7 +67,7 @@ internal sealed partial class TerminalRenderer
 
             Separator(width);
             WriteLine(
-                "QUICK OPS > 1-9 MODULES · P/B/A SNAPSHOT · C DIFF · W WATCH · L LIVE · D DIAG",
+                "QUICK OPS > 1-9 MODULES · P SNAPSHOT · C DIFF · G DRIFT · T TIMELINE · K CASES · D SYSTEM",
                 width,
                 CyberTheme.Secondary,
                 centered: true);
@@ -310,3 +311,4 @@ internal sealed partial class TerminalRenderer
         _ => CyberTheme.Muted
     };
 }
+

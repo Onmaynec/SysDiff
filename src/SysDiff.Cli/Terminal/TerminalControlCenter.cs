@@ -7,23 +7,25 @@ using SysDiff.Storage;
 
 namespace SysDiff.Cli;
 
-internal sealed class TerminalControlCenter
+internal sealed partial class TerminalControlCenter
 {
     private static readonly IReadOnlyList<TerminalMenuItem> MainMenu =
     [
         new("snapshots", "Snapshot Node", "создание, просмотр и перенос снимков", "◆"),
         new("compare", "Diff Lab", "сравнение и исследование изменений", "◇"),
+        new("drift", "Drift Operations", "baseline, risk score и drift scan", "⌁"),
+        new("timeline", "Investigation Timeline", "единая хронология расследования", "◷"),
+        new("cases", "Case Vault", "кейсы, заметки и связанные объекты", "▣"),
         new("watch", "Watch Operations", "контролируемый запуск программы", "▶"),
         new("live", "Live Signal", "процессы и сетевые endpoints", "●"),
         new("reports", "Report Vault", "готовые отчёты и архивы", "▤"),
-        new("doctor", "Node Diagnostics", "система, права, база и providers", "✓"),
-        new("settings", "System Settings", "пути, режим хранения и hotkeys", "⚙"),
-        new("about", "About Node", "версия, безопасность и назначение", "i"),
-        new("exit", "Disconnect", "закрыть Cyber Control Node", "×")
+        new("system", "System Node", "diagnostics, settings, about, disconnect", "⚙")
     ];
 
     private readonly AppPaths _paths;
     private readonly ISnapshotStore _store;
+    private readonly IInvestigationStore _investigationStore;
+    private readonly DriftOperationsService _driftOperations;
     private readonly SnapshotCoordinator _coordinator;
     private readonly ProfileCatalog _profiles;
     private readonly IReadOnlyCollection<ISnapshotProvider> _providers;
@@ -41,6 +43,8 @@ internal sealed class TerminalControlCenter
     public TerminalControlCenter(
         AppPaths paths,
         ISnapshotStore store,
+        IInvestigationStore investigationStore,
+        DriftOperationsService driftOperations,
         SnapshotCoordinator coordinator,
         ProfileCatalog profiles,
         IEnumerable<ISnapshotProvider> providers,
@@ -57,6 +61,8 @@ internal sealed class TerminalControlCenter
     {
         _paths = paths;
         _store = store;
+        _investigationStore = investigationStore;
+        _driftOperations = driftOperations;
         _coordinator = coordinator;
         _profiles = profiles;
         _providers = providers.ToArray();
@@ -112,11 +118,20 @@ internal sealed class TerminalControlCenter
             {
                 switch (selected.Id)
                 {
-                    case "snapshots":
+      case "snapshots":
                         await RunSnapshotCenterAsync(cancellationToken);
                         break;
                     case "compare":
                         await RunComparisonLabAsync(cancellationToken);
+                        break;
+                    case "drift":
+                        await RunDriftOperationsAsync(cancellationToken);
+                        break;
+                    case "timeline":
+                        await RunInvestigationTimelineAsync(cancellationToken);
+                        break;
+                    case "cases":
+                        await RunCaseVaultAsync(cancellationToken);
                         break;
                     case "watch":
                         await RunWatchSessionAsync(cancellationToken);
@@ -127,17 +142,12 @@ internal sealed class TerminalControlCenter
                     case "reports":
                         await RunReportsAsync(cancellationToken);
                         break;
-                    case "doctor":
-                        await RunDiagnosticsAsync(cancellationToken);
+                    case "system":
+                        if (await RunSystemNodeAsync(cancellationToken))
+                        {
+                            return 0;
+                        }
                         break;
-                    case "settings":
-                        RunSettings();
-                        break;
-                    case "about":
-                        RunAbout();
-                        break;
-                    case "exit":
-                        return 0;
                 }
             }
             catch (OperationCanceledException)
@@ -159,6 +169,17 @@ internal sealed class TerminalControlCenter
         IReadOnlyList<SnapshotRecord> snapshots = await _store.ListSnapshotsAsync(cancellationToken);
         Directory.CreateDirectory(_paths.ReportsDirectory);
         int reports = Directory.EnumerateFiles(_paths.ReportsDirectory, "*", SearchOption.TopDirectoryOnly).Count();
+        BaselineRecord? baseline = await _investigationStore.GetBaselineAsync(cancellationToken);
+        InvestigationCaseRecord? activeCase = await _investigationStore.GetActiveCaseAsync(cancellationToken);
+        TimelineEventRecord? lastDrift = (await _investigationStore.ListTimelineAsync(
+            1,
+            TimelineEventKind.DriftScan,
+            cancellationToken)).FirstOrDefault();
+        int? lastRisk = lastDrift is not null
+            && lastDrift.Metadata.TryGetValue("score", out string? scoreText)
+            && int.TryParse(scoreText, out int score)
+                ? score
+                : null;
         return new TerminalDashboardState(
             snapshots.Count,
             reports,
@@ -166,7 +187,10 @@ internal sealed class TerminalControlCenter
             IsAdministrator(),
             _paths.Portable,
             Environment.OSVersion.Version.ToString(),
-            _paths.DataDirectory);
+            _paths.DataDirectory,
+            baseline?.SnapshotName,
+            activeCase?.Name,
+            lastRisk);
     }
 
     private async Task RunSnapshotCenterAsync(CancellationToken cancellationToken)
@@ -982,8 +1006,8 @@ internal sealed class TerminalControlCenter
     private void RunAbout()
     {
         _renderer.ShowMessage(
-            "ABOUT SYSDIFF 0.5.0",
-            "SysDiff — локальная Windows-утилита для снимков, сравнения и расследования системных изменений. Cyber Console является основным интерактивным интерфейсом, а CLI-команды сохранены для автоматизации и CI.\n\nSysDiff не является антивирусом и не выносит вердикт о вредоносности. Live monitor ничего не завершает, не меняет сеть и не читает содержимое трафика.\n\nАвтор: Onmaynec\nЛицензия: MIT");
+            "ABOUT SYSDIFF 0.6.0",
+            "SysDiff — локальная Windows-утилита для снимков, сравнения и расследования системных изменений. Cyber Console с Drift Operations является основным интерактивным интерфейсом, а CLI-команды сохранены для автоматизации и CI.\n\nSysDiff не является антивирусом и не выносит вердикт о вредоносности. Live monitor ничего не завершает, не меняет сеть и не читает содержимое трафика.\n\nАвтор: Onmaynec\nЛицензия: MIT");
     }
 
     private async Task<SnapshotRecord> CaptureWithProgressAsync(
@@ -1044,5 +1068,6 @@ internal sealed class TerminalControlCenter
         return principal.IsInRole(WindowsBuiltInRole.Administrator);
     }
 }
+
 
 
