@@ -3,7 +3,7 @@
   "$id": "https://github.com/Onmaynec/SysDiff/schemas/config.schema.json",
   "title": "Конфигурация SysDiff",
   "type": "object",
-  "required": ["schemaVersion", "storage", "capture", "comparison", "privacy", "ui"],
+  "required": ["schemaVersion", "storage", "capture", "comparison", "privacy", "ui", "updates"],
   "properties": {
     "schemaVersion": {
       "type": "integer",
@@ -63,6 +63,24 @@
         "language": { "enum": ["auto", "ru", "en"] },
         "animations": { "type": "boolean" },
         "theme": { "enum": ["dark", "light", "system"] }
+      },
+      "additionalProperties": false
+    },
+    "updates": {
+      "type": "object",
+      "required": [
+        "channel",
+        "autoCheck",
+        "autoDownload",
+        "checkIntervalHours",
+        "requireInstallConfirmation"
+      ],
+      "properties": {
+        "channel": { "const": "stable" },
+        "autoCheck": { "type": "boolean" },
+        "autoDownload": { "type": "boolean" },
+        "checkIntervalHours": { "type": "integer", "minimum": 1, "maximum": 168 },
+        "requireInstallConfirmation": { "const": true }
       },
       "additionalProperties": false
     }
