@@ -31,7 +31,7 @@ public sealed partial class PrivacyRedactor
                 StringComparison.OrdinalIgnoreCase);
         }
 
-        return UserProfilePattern().Replace(result, "%USERPROFILE%$2");
+        return UserProfilePattern().Replace(result, "%USERPROFILE%$1");
     }
 
     public SystemArtifact RedactArtifact(SystemArtifact artifact)
