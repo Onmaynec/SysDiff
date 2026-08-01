@@ -28,7 +28,7 @@ jobs:
                 });
                 core.info(`Удалена ветка ${branch}`);
               } catch (error) {
-                if (error.status === 404) {
+                if (error.status === 404 || error.status === 422) {
                   core.info(`Ветка ${branch} уже отсутствует`);
                 } else {
                   throw error;
@@ -57,7 +57,7 @@ jobs:
               });
               core.info(`Удалена ветка ${branch}`);
             } catch (error) {
-              if (error.status === 404) {
+              if (error.status === 404 || error.status === 422) {
                 core.info(`Ветка ${branch} уже удалена`);
               } else {
                 throw error;
