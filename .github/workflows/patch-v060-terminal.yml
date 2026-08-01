@@ -1,0 +1,190 @@
+name: Patch Cyber Console 0.6
+
+on:
+  push:
+    branches: [agent/sysdiff-v0.6.0]
+    paths: [.github/workflows/patch-v060-terminal.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/sysdiff-v0.6.0
+          fetch-depth: 0
+
+      - name: Применить structural patch
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $path = 'src/SysDiff.Cli/Terminal/TerminalControlCenter.cs'
+          $content = Get-Content $path -Raw
+          $content = $content.Replace('internal sealed class TerminalControlCenter', 'internal sealed partial class TerminalControlCenter')
+
+          $menu = @'
+              private static readonly IReadOnlyList<TerminalMenuItem> MainMenu =
+              [
+                  new("snapshots", "Snapshot Node", "создание, просмотр и перенос снимков", "◆"),
+                  new("compare", "Diff Lab", "сравнение и исследование изменений", "◇"),
+                  new("drift", "Drift Operations", "baseline, risk score и drift scan", "⌁"),
+                  new("timeline", "Investigation Timeline", "единая хронология расследования", "◷"),
+                  new("cases", "Case Vault", "кейсы, заметки и связанные объекты", "▣"),
+                  new("watch", "Watch Operations", "контролируемый запуск программы", "▶"),
+                  new("live", "Live Signal", "процессы и сетевые endpoints", "●"),
+                  new("reports", "Report Vault", "готовые отчёты и архивы", "▤"),
+                  new("system", "System Node", "diagnostics, settings, about, disconnect", "⚙")
+              ];
+          '@
+          $menu = $menu -replace '^ {10}', ''
+          $content = [regex]::Replace(
+              $content,
+              '    private static readonly IReadOnlyList<TerminalMenuItem> MainMenu =\s*\[.*?^    \];',
+              $menu.TrimEnd(),
+              [System.Text.RegularExpressions.RegexOptions]::Singleline -bor [System.Text.RegularExpressions.RegexOptions]::Multiline)
+
+          $content = $content.Replace(
+              '    private readonly ISnapshotStore _store;',
+              "    private readonly ISnapshotStore _store;`n    private readonly IInvestigationStore _investigationStore;`n    private readonly DriftOperationsService _driftOperations;")
+          $content = $content.Replace(
+              "        ISnapshotStore store,`n        SnapshotCoordinator coordinator,",
+              "        ISnapshotStore store,`n        IInvestigationStore investigationStore,`n        DriftOperationsService driftOperations,`n        SnapshotCoordinator coordinator,")
+          $content = $content.Replace(
+              "        _store = store;`n        _coordinator = coordinator;",
+              "        _store = store;`n        _investigationStore = investigationStore;`n        _driftOperations = driftOperations;`n        _coordinator = coordinator;")
+
+          $switch = @'
+                              case "snapshots":
+                                  await RunSnapshotCenterAsync(cancellationToken);
+                                  break;
+                              case "compare":
+                                  await RunComparisonLabAsync(cancellationToken);
+                                  break;
+                              case "drift":
+                                  await RunDriftOperationsAsync(cancellationToken);
+                                  break;
+                              case "timeline":
+                                  await RunInvestigationTimelineAsync(cancellationToken);
+                                  break;
+                              case "cases":
+                                  await RunCaseVaultAsync(cancellationToken);
+                                  break;
+                              case "watch":
+                                  await RunWatchSessionAsync(cancellationToken);
+                                  break;
+                              case "live":
+                                  await RunLiveMonitorAsync(cancellationToken);
+                                  break;
+                              case "reports":
+                                  await RunReportsAsync(cancellationToken);
+                                  break;
+                              case "system":
+                                  if (await RunSystemNodeAsync(cancellationToken))
+                                  {
+                                      return 0;
+                                  }
+                                  break;
+          '@
+          $switch = $switch -replace '^ {14}', ''
+          $content = [regex]::Replace(
+              $content,
+              '                    case "snapshots":.*?                    case "exit":\s*                        return 0;',
+              $switch.TrimEnd(),
+              [System.Text.RegularExpressions.RegexOptions]::Singleline)
+
+          $dashboardMethod = @'
+              private async Task<TerminalDashboardState> LoadDashboardStateAsync(
+                  CancellationToken cancellationToken)
+              {
+                  IReadOnlyList<SnapshotRecord> snapshots = await _store.ListSnapshotsAsync(cancellationToken);
+                  Directory.CreateDirectory(_paths.ReportsDirectory);
+                  int reports = Directory.EnumerateFiles(_paths.ReportsDirectory, "*", SearchOption.TopDirectoryOnly).Count();
+                  BaselineRecord? baseline = await _investigationStore.GetBaselineAsync(cancellationToken);
+                  InvestigationCaseRecord? activeCase = await _investigationStore.GetActiveCaseAsync(cancellationToken);
+                  TimelineEventRecord? lastDrift = (await _investigationStore.ListTimelineAsync(
+                      1,
+                      TimelineEventKind.DriftScan,
+                      cancellationToken)).FirstOrDefault();
+                  int? lastRisk = lastDrift is not null
+                      && lastDrift.Metadata.TryGetValue("score", out string? scoreText)
+                      && int.TryParse(scoreText, out int score)
+                          ? score
+                          : null;
+                  return new TerminalDashboardState(
+                      snapshots.Count,
+                      reports,
+                      _providers.Count,
+                      IsAdministrator(),
+                      _paths.Portable,
+                      Environment.OSVersion.Version.ToString(),
+                      _paths.DataDirectory,
+                      baseline?.SnapshotName,
+                      activeCase?.Name,
+                      lastRisk);
+              }
+          '@
+          $dashboardMethod = $dashboardMethod -replace '^ {10}', ''
+          $content = [regex]::Replace(
+              $content,
+              '    private async Task<TerminalDashboardState> LoadDashboardStateAsync\(.*?^    \}\n\n    private async Task RunSnapshotCenterAsync',
+              $dashboardMethod.TrimEnd() + "`n`n    private async Task RunSnapshotCenterAsync",
+              [System.Text.RegularExpressions.RegexOptions]::Singleline -bor [System.Text.RegularExpressions.RegexOptions]::Multiline)
+          $content = $content.Replace('ABOUT SYSDIFF 0.5.0', 'ABOUT SYSDIFF 0.6.0')
+          $content = $content.Replace(
+              'Cyber Console является основным интерактивным интерфейсом',
+              'Cyber Console с Drift Operations является основным интерактивным интерфейсом')
+          Set-Content $path $content -Encoding utf8NoBOM
+
+          $renderer = 'src/SysDiff.Cli/Terminal/TerminalRenderer.cs'
+          $renderContent = Get-Content $renderer -Raw
+          $renderContent = $renderContent.Replace('SysDiff 0.5.0 · Cyber Console', 'SysDiff 0.6.0 · Drift Operations')
+          $renderContent = $renderContent.Replace(
+              "    string WindowsVersion,`n    string DataDirectory);",
+              "    string WindowsVersion,`n    string DataDirectory,`n    string? BaselineName,`n    string? ActiveCaseName,`n    int? LastRiskScore);")
+          Set-Content $renderer $renderContent -Encoding utf8NoBOM
+
+          $screens = 'src/SysDiff.Cli/Terminal/TerminalRenderer.Screens.cs'
+          $screenContent = Get-Content $screens -Raw
+          $screenContent = $screenContent.Replace(
+              '            WriteLine($"DATA CHANNEL > {state.DataDirectory}", width, CyberTheme.Muted);',
+              '            WriteLine($"DATA CHANNEL > {state.DataDirectory}", width, CyberTheme.Muted);' + "`n" +
+              '            WriteLine($"DRIFT CHANNEL > BASELINE:{state.BaselineName ?? "NOT SET"} // CASE:{state.ActiveCaseName ?? "NONE"} // RISK:{(state.LastRiskScore is null ? "---" : state.LastRiskScore.Value.ToString("000"))}/100", width, state.LastRiskScore >= 65 ? CyberTheme.Error : state.LastRiskScore >= 35 ? CyberTheme.Warning : CyberTheme.Secondary);')
+          $screenContent = $screenContent.Replace(
+              'QUICK OPS > 1-9 MODULES · P/B/A SNAPSHOT · C DIFF · W WATCH · L LIVE · D DIAG',
+              'QUICK OPS > 1-9 MODULES · P SNAPSHOT · C DIFF · G DRIFT · T TIMELINE · K CASES · D SYSTEM')
+          Set-Content $screens $screenContent -Encoding utf8NoBOM
+
+          $nav = 'src/SysDiff.Cli/Terminal/TerminalNavigation.cs'
+          $navContent = Get-Content $nav -Raw
+          $navContent = [regex]::Replace(
+              $navContent,
+              '        if \(itemCount == 9\)\s*\{.*?^        \}',
+              @'
+                  if (itemCount == 9)
+                  {
+                      index = key switch
+                      {
+                          ConsoleKey.P or ConsoleKey.B or ConsoleKey.A => 0,
+                          ConsoleKey.C => 1,
+                          ConsoleKey.G => 2,
+                          ConsoleKey.T => 3,
+                          ConsoleKey.K => 4,
+                          ConsoleKey.W => 5,
+                          ConsoleKey.L => 6,
+                          ConsoleKey.D => 8,
+                          _ => index
+                      };
+                  }
+          '@ -replace '^ {10}', '',
+              [System.Text.RegularExpressions.RegexOptions]::Singleline -bor [System.Text.RegularExpressions.RegexOptions]::Multiline)
+          Set-Content $nav $navContent -Encoding utf8NoBOM
+
+          Remove-Item '.github/workflows/patch-v060-terminal.yml'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/SysDiff.Cli/Terminal .github/workflows/patch-v060-terminal.yml
+          git commit -m 'Интегрировать Drift Operations в Cyber Console'
+          git push origin HEAD:agent/sysdiff-v0.6.0
