@@ -4,7 +4,7 @@
 
 # SysDiff
 
-**Полноценная терминальная утилита для снимков, сравнения и расследования изменений Windows.**
+**Полноценная cyber-terminal утилита для снимков, сравнения и расследования изменений Windows.**
 
 [![Сборка](https://github.com/Onmaynec/SysDiff/actions/workflows/build.yml/badge.svg)](https://github.com/Onmaynec/SysDiff/actions/workflows/build.yml)
 [![Тесты](https://github.com/Onmaynec/SysDiff/actions/workflows/test.yml/badge.svg)](https://github.com/Onmaynec/SysDiff/actions/workflows/test.yml)
@@ -17,9 +17,9 @@
 > [!IMPORTANT]
 > **SysDiff не является антивирусом.** Он фиксирует и объясняет системные изменения, но не объявляет объект безопасным или вредоносным.
 
-<img src="assets/screenshots/terminal-control-center.svg" alt="SysDiff Terminal Control Center 0.4.0">
+<img src="assets/screenshots/cyber-console.svg" alt="SysDiff Cyber Console 0.5.0">
 
-## 🖥️ Terminal Control Center 0.4.0
+## 🟢 Cyber Console 0.5.0
 
 Запустите SysDiff без аргументов:
 
@@ -33,76 +33,97 @@ sysdiff
 dotnet run --project .\src\SysDiff.Cli
 ```
 
-Откроется собственная полноэкранная терминальная панель. Основной интерфейс больше не требует ввода числовых команд: разделы выбираются стрелками, действия открываются клавишей `Enter`, возврат выполняется через `Esc`.
+Версия 0.5.0 превращает Terminal Control Center в плотный **Cyber Control Node**, визуально ближе к NexRoute: нумерованные модули, ASCII-логотип, неоновая палитра, boot sequence, Action Console и живой поток providers.
 
-### Управление
+### Command Deck
 
 | Клавиша | Действие |
 |---|---|
-| `↑` / `↓` | навигация по меню и спискам |
-| `Enter` | открыть выбранный пункт |
+| `1`…`9` | открыть модуль напрямую |
+| `P`, `B`, `A` | Snapshot Node |
+| `C` | Diff Lab |
+| `W` | Watch Operations |
+| `L` | Live Signal Monitor |
+| `D` | Diagnostics |
+| `↑` / `↓` | перемещение по меню |
+| `Enter` | выполнить выбранное действие |
 | `Esc` | вернуться назад |
-| `/` | поиск в Change Explorer |
-| `F` | переключить минимальную важность |
-| `S` | изменить сортировку |
-| `R` | показать или скрыть raw changes |
-| `E` | экспортировать сравнение |
-| `F5` | обновить dashboard |
-| `Q` | выйти из SysDiff |
+| `F5` | обновить Control Node |
+| `Q` | выйти |
 
-## ✨ Возможности 0.4.0
+В Change Explorer сохранены `/`, `F`, `S`, `R` и `E` для поиска, severity-фильтра, сортировки, raw mode и экспорта.
 
-- 🖥️ полноэкранный Terminal Control Center;
-- 🎨 ASCII-логотип, панели, цветовые статусы и компактная компоновка;
-- ⌨️ управление стрелками без мыши;
-- ✨ spinner-анимации и прогресс длительных операций;
-- 📸 интерактивный Snapshot Center;
-- 🔎 Comparison Lab с поиском, severity-фильтром и Change Explorer;
-- 👀 пошаговый Watch Session;
-- 📡 интерактивный Process/Network Live Monitor;
-- 📄 центр отчётов и investigation bundles;
-- 🩺 диагностика Windows, прав, SQLite, providers и размера терминала;
-- 🔁 автоматическое восстановление курсора и цветов после выхода;
-- 🤖 сохранение обычного CLI для PowerShell, CI и автоматизации.
+## ⚡ Анимации действий
 
-## 🧭 Разделы панели
+### Boot sequence
 
-### Snapshot Center
+При интерактивном запуске SysDiff кратко проверяет:
 
-- создание снимка с выбором профиля;
-- анимированный прогресс текущего provider;
-- просмотр статуса и числа объектов;
-- экспорт и импорт `.sdshot`;
-- безопасное удаление с подтверждением.
+```text
+[OK] NEGOTIATING TERMINAL CHANNEL
+[OK] VERIFYING LOCAL STORAGE
+[>>] INDEXING SNAPSHOT PROVIDERS
+[--] ARMING COMPARISON ENGINE
+[--] SYNCING LIVE MONITORS
+```
 
-### Comparison Lab
+Анимацию можно пропустить любой клавишей. Она не выполняет дополнительных системных действий и не изменяет результат работы.
 
-- выбор `before` и `after` стрелками;
-- режимы шума `Balanced`, `Strict`, `Raw`;
-- явный cross-machine режим;
-- обзор `Added`, `Removed`, `Modified`, `Moved`, `Renamed`;
-- просмотр свойств `before → after`;
-- HTML, JSON, Markdown и investigation bundle.
+### Action Console
 
-### Watch Session
+Длительные операции больше не показывают один символ spinner. Отдельная панель отображает:
 
-- запуск программы или ручной режим;
-- этапы `before → launch/wait → stabilization → after → compare`;
-- ожидание дерева дочерних процессов;
-- безопасный тайм-аут без принудительного завершения процессов;
-- автоматический HTML-отчёт.
+- этапы `queued`, `running`, `completed`, `failed`, `cancelled`;
+- текущую операцию;
+- elapsed time и PID;
+- progress/scanner bars;
+- итоговый статус;
+- напоминание о безопасной отмене через `Ctrl+C`.
 
-### Live Monitor
+### Provider Stream
 
-- события запуска и завершения процессов;
-- события появления и исчезновения TCP/UDP endpoints;
-- ограничение по времени и root PID;
-- JSON/Markdown-журналы;
-- содержимое сетевого трафика не читается.
+Во время снимка видно активный provider, количество обработанных объектов и текущий путь или системный объект. Ошибка доступа остаётся локальной для provider и не разрушает весь снимок.
+
+## 🎨 Cyber theme
+
+Единая палитра применяется ко всем экранам:
+
+- neon green — активный модуль и успешные этапы;
+- cyan — текущий поток и аналитические данные;
+- amber — предупреждения и частичные результаты;
+- red — ошибки;
+- маркеры `[OK]`, `[!!]`, `[XX]`, `[>>]`, `[--]` сохраняют смысл без цвета.
+
+Для совместимости:
+
+```powershell
+$env:SYSDIFF_NO_ANIMATIONS = "1"  # отключить движение
+$env:NO_COLOR = "1"               # отключить цвета
+sysdiff
+```
+
+При redirected output и в CI интерактивные анимации отключаются автоматически.
+
+## ✨ Возможности SysDiff
+
+- 📸 снимки файлов, реестра, служб, задач, автозагрузки и окружения;
+- 🧱 Firewall, установленные приложения, драйверы и сертификаты;
+- 🌐 адаптеры, DNS, шлюзы, proxy и маршруты;
+- 🔴 live process monitor;
+- 📡 live network endpoint monitor без чтения трафика;
+- ↔️ `Moved` и `Renamed` для однозначных файловых изменений;
+- 🖥️ cross-machine compare;
+- 📦 экспорт и импорт `.sdshot` с SHA-256;
+- 🧳 investigation bundle;
+- 🎛️ пользовательские JSON-профили;
+- 🧩 Provider SDK и явная загрузка plugins;
+- 🕶️ маскирование `%USERPROFILE%`;
+- 📄 Console, JSON, Markdown и автономные HTML-отчёты;
+- 🗃️ SQLite и portable mode.
 
 ## 🔍 Классический CLI сохранён
 
-Интерактивная панель не заменяет команды автоматизации:
+Cyber Console не заменяет автоматизацию:
 
 ```powershell
 sysdiff doctor
@@ -114,7 +135,7 @@ sysdiff live process --duration 60
 sysdiff snapshot export before --output .\before.sdshot
 ```
 
-При перенаправленном `stdin` или `stdout` TUI не запускается и не добавляет ANSI-последовательности в машинный вывод.
+При перенаправленном `stdin` или `stdout` TUI не запускается и не добавляет управляющие последовательности в машинный вывод.
 
 ## 🚀 Быстрый старт
 
@@ -145,27 +166,9 @@ dotnet test SysDiff.sln --configuration Release
 Результат:
 
 ```text
-SysDiff-0.4.0-win-x64.zip
-SysDiff-0.4.0-win-x64.zip.sha256
+SysDiff-0.5.0-win-x64.zip
+SysDiff-0.5.0-win-x64.zip.sha256
 ```
-
-## 🧩 Источники системных данных
-
-SysDiff анализирует:
-
-- файлы и каталоги;
-- реестр;
-- службы;
-- задачи планировщика;
-- автозагрузку;
-- переменные окружения и PATH;
-- Windows Firewall;
-- установленные приложения;
-- системные драйверы;
-- сертификаты Windows;
-- адаптеры, DNS, шлюзы, proxy и маршруты.
-
-Подробнее: [docs/PROVIDERS.md](docs/PROVIDERS.md).
 
 ## 🔐 Безопасность и конфиденциальность
 
@@ -175,13 +178,12 @@ SysDiff анализирует:
 - `.sdshot` проверяет структуру, размер и SHA-256;
 - найденные команды, пути и аргументы считаются данными и не выполняются;
 - live monitor не изменяет процессы, Firewall, DNS или маршруты;
-- SysDiff хранит снимки и отчёты локально.
-
-Подробнее: [docs/SECURITY.md](docs/SECURITY.md) и [docs/PRIVACY.md](docs/PRIVACY.md).
+- анимации являются только представлением и не запускают дополнительные команды;
+- снимки и отчёты хранятся локально.
 
 ## 📚 Документация
 
-- [Terminal Control Center](docs/TERMINAL_UI.md)
+- [Cyber Console](docs/TERMINAL_UI.md)
 - [Команды](docs/COMMANDS.md)
 - [Архитектура](docs/ARCHITECTURE.md)
 - [Провайдеры](docs/PROVIDERS.md)
@@ -196,7 +198,7 @@ SysDiff анализирует:
 - очень короткоживущие события могут завершиться между интервалами опроса;
 - защищённые области требуют администратора;
 - большие профили могут содержать сотни тысяч объектов;
-- узкие терминалы используют компактную одноколоночную компоновку;
+- узкие терминалы используют compact layout;
 - оценка важности является объяснимой эвристикой, а не антивирусным вердиктом.
 
 ## 📜 Лицензия
@@ -207,6 +209,6 @@ SysDiff анализирует:
 
 <div align="center">
 
-**SysDiff 0.4.0 — полноценная Windows-утилита внутри терминала.**
+**SysDiff 0.5.0 — Windows investigation utility with a Cyber Control Node.**
 
 </div>
