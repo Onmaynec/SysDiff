@@ -229,7 +229,7 @@ public sealed class SnapshotArchiveService
         if (string.IsNullOrWhiteSpace(entry.FullName)
             || !string.Equals(entry.FullName, entry.Name, StringComparison.Ordinal)
             || entry.FullName.Contains("..", StringComparison.Ordinal)
-            || entry.FullName.Contains(':', StringComparison.Ordinal)
+            || entry.FullName.Contains(':')
             || Path.IsPathRooted(entry.FullName))
         {
             throw new InvalidDataException("Архив содержит небезопасный путь.");
