@@ -8,10 +8,64 @@
 
 - стабильная схема данных 1.0;
 - полноценные migrations и compatibility policy;
-- подписанные release artifacts;
-- безопасный rollback preview;
+- Authenticode code signing официального EXE;
+- безопасный rollback preview системных изменений;
 - оптимизация больших снимков;
 - полная локализация RU/EN.
+
+## [0.7.0] — 2026-08-01
+
+### Добавлено
+
+- полноценный release pipeline, который ждёт squash merge release PR;
+- аннотированный tag `v0.7.0` на merge-коммите;
+- GitHub Release с portable ZIP, `.sha256` и `release-manifest.json`;
+- GitHub artifact provenance attestations для ZIP и manifest;
+- строгая модель stable release manifest;
+- SemVer parser/comparer без зависимости от NuGet updater package;
+- команды `update check|status|download|install|settings|clear-cache`;
+- JSON-вывод update status/settings;
+- автоматическая проверка stable channel;
+- опциональная автоматическая загрузка без автоматической установки;
+- Update Center внутри `System Node`;
+- безопасная ZIP extraction с path/size guards;
+- staged `sysdiff.exe --version` verification;
+- PowerShell update helper с ожиданием PID, backup, post-install verification и rollback;
+- локальные `update-settings.json`, `update-state.json` и update cache;
+- JSON Schema для release manifest;
+- тесты SemVer, manifest tampering, SHA-256, persistence и installer plan;
+- отдельная документация `docs/UPDATES.md`;
+- SVG-preview Release Channel.
+
+### Изменено
+
+- версия EXE, snapshot metadata, CyberTheme и portable package обновлена до `0.7.0`;
+- `scripts/package.ps1` теперь проверяет версию проекта и формирует manifest;
+- `scripts/smoke-test.ps1` проверяет updater CLI и Release Channel smoke frame;
+- System Node получил Update Center;
+- README и русская документация синхронизированы с tagged releases;
+- release workflow стал idempotent и не создаёт duplicate release.
+
+### Безопасность
+
+- updater принимает только stable manifest официального репозитория;
+- asset URL ограничен HTTPS-host/path allow-list;
+- size и SHA-256 проверяются до распаковки;
+- ZIP traversal и чрезмерная распаковка отклоняются;
+- работающий EXE не заменяется напрямую;
+- helper получает пути через `ArgumentList` и использует `-LiteralPath`;
+- failed verification восстанавливает backup;
+- self-update недоступен при `dotnet run`;
+- установка всегда требует явного подтверждения;
+- пользовательские SQLite, snapshots, cases, reports и profiles не удаляются;
+- отсутствие Authenticode не скрывается: manifest содержит `unsigned=true`.
+
+### Release engineering
+
+- tag/version/branch/package/manifest должны совпадать;
+- test suite и smoke-test повторяются после merge перед созданием tag;
+- release assets проверяются после публикации;
+- существующий GitHub Release приводит к безопасному no-op.
 
 ## [0.6.0] — 2026-08-01
 

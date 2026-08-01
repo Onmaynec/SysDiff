@@ -25,5 +25,12 @@
     "language": "ru",
     "animations": false,
     "theme": "dark"
+  },
+  "updates": {
+    "channel": "stable",
+    "autoCheck": true,
+    "autoDownload": false,
+    "checkIntervalHours": 24,
+    "requireInstallConfirmation": true
   }
 }

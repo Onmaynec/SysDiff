@@ -1,4 +1,4 @@
-# ⌨️ Команды SysDiff 0.6.0
+# ⌨️ Команды SysDiff 0.7.0
 
 ## Cyber Console
 
@@ -6,7 +6,7 @@
 sysdiff
 ```
 
-Без аргументов SysDiff открывает Cyber Control Node. Подробности: [TERMINAL_UI.md](TERMINAL_UI.md).
+Без аргументов SysDiff открывает Cyber Control Node. В `[09] System Node` доступен **Update Center**. Подробности: [TERMINAL_UI.md](TERMINAL_UI.md) и [UPDATES.md](UPDATES.md).
 
 ### Command Deck
 
@@ -32,6 +32,54 @@ sysdiff --version
 sysdiff doctor
 sysdiff --tui-smoke
 ```
+
+## Обновления
+
+### Проверка и состояние
+
+```powershell
+sysdiff update check
+sysdiff update check --json
+sysdiff update status
+sysdiff update status --json
+```
+
+`update check` выполняет сетевой запрос к официальному stable manifest. `update status` показывает сохранённое состояние без обязательного сетевого обращения.
+
+### Загрузка и установка
+
+```powershell
+sysdiff update download
+sysdiff update download --json
+sysdiff update install --yes
+sysdiff update install --yes --restart
+```
+
+`update download` проверяет host/path, размер, SHA-256, ZIP paths и staged EXE version. `update install` доступна только для опубликованного `sysdiff.exe`; при `dotnet run` установка отклоняется. Установка всегда требует `--yes`.
+
+### Настройки
+
+```powershell
+sysdiff update settings
+sysdiff update settings --json
+sysdiff update settings --auto-check true
+sysdiff update settings --auto-check false
+sysdiff update settings --auto-download true
+sysdiff update settings --auto-download false
+sysdiff update settings --interval-hours 12
+sysdiff update settings --ignore 0.8.0
+sysdiff update settings --ignore none
+sysdiff update clear-cache
+```
+
+| Параметр | Значения | По умолчанию |
+|---|---|---|
+| `--auto-check` | `true`, `false` | `true` |
+| `--auto-download` | `true`, `false` | `false` |
+| `--interval-hours` | `1–168` | `24` |
+| `--ignore` | SemVer или `none` | `none` |
+
+Auto-download не устанавливает обновление. Auto-install отсутствует.
 
 ## Baseline
 
@@ -172,7 +220,7 @@ sysdiff config path
 | Код | Значение |
 |---:|---|
 | 0 | успех |
-| 1 | общая ошибка |
+| 1 | общая, сетевая или update-ошибка |
 | 2 | некорректные аргументы или невозможность запустить TUI |
 | 3 | snapshot/baseline не найдены |
 | 5 | доступ запрещён |
