@@ -7,77 +7,81 @@
 ### Планируется
 
 - стабильная схема данных 1.0;
-- миграции;
-- подписанные релизы;
+- полноценные migrations и compatibility policy;
+- подписанные release artifacts;
 - безопасный rollback preview;
 - оптимизация больших снимков;
 - полная локализация RU/EN.
+
+## [0.6.0] — 2026-08-01
+
+### Добавлено
+
+- Baseline Vault с командами `baseline show|set|clear`;
+- Drift Scan относительно доверенного snapshot;
+- explainable Drift Risk Score `0–100`;
+- уровни `Stable`, `Notice`, `Elevated`, `High`, `Critical`;
+- Investigation Timeline со snapshots, comparisons, scans, cases и notes;
+- Case Vault с active case, tags, description и links;
+- команды `case create|list|show|use|close`;
+- команды `timeline list` и `drift scan`;
+- автоматическая привязка snapshot/comparison/report к активному кейсу;
+- additive SQLite tables `investigation_settings`, `investigation_cases`, `investigation_links`, `timeline_events`;
+- таблица `app_migrations` и запись `0.6.0-investigations`;
+- новые TUI-модули `[03] Drift Operations`, `[04] Investigation Timeline`, `[05] Case Vault`;
+- `System Node`, объединяющий diagnostics, settings, about и disconnect;
+- новые hotkeys `G`, `T`, `K`, `D`;
+- JSON summary и HTML report каждого Drift Scan;
+- integration tests persistence/migration и risk score tests;
+- SVG-preview Drift Operations.
+
+### Изменено
+
+- Cyber Control Node показывает baseline, active case и последний risk score;
+- Command Deck снова содержит ровно девять основных модулей;
+- версия EXE, snapshot metadata и portable package обновлена до `0.6.0`;
+- `--help` и `--tui-smoke` расширены Drift Operations;
+- русская документация полностью синхронизирована.
+
+### Совместимость
+
+- legacy tables snapshots/artifacts/comparisons не меняются;
+- initialization новых tables idempotent;
+- старые snapshots/comparisons реконструируются в Timeline без rewrite;
+- stable schema 1.0 не объявляется преждевременно.
+
+### Безопасность
+
+- baseline не выполняет rollback;
+- Drift Scan не изменяет исследуемую систему;
+- notes, tags, paths и captured commands считаются данными;
+- закрытие кейса не удаляет snapshots или reports;
+- partial data явно снижает доверие к risk summary.
 
 ## [0.5.0] — 2026-08-01
 
 ### Добавлено
 
-- `SYSDIFF CYBER CONSOLE` с новым ASCII-header и плотным Control Node;
+- `SYSDIFF CYBER CONSOLE` с ASCII-header и плотным Control Node;
 - нумерованный Command Deck `[01]`…`[09]`;
 - быстрые клавиши `1–9`, `P/B/A`, `C`, `W`, `L`, `D`;
-- boot sequence terminal/storage/providers/engines;
-- Action Console со стадиями `queued`, `running`, `completed`, `failed`, `cancelled`;
-- animated progress/scanner bars и elapsed time;
-- живой Provider Stream при создании снимка;
-- единая neon green/cyan/amber/red theme;
-- текстовые маркеры `[OK]`, `[>>]`, `[--]`, `[!!]`, `[XX]`, `[//]`;
+- boot sequence;
+- Action Console;
+- animated progress/scanner bars;
+- живой Provider Stream;
+- единая neon theme;
 - `SYSDIFF_NO_ANIMATIONS=1` и `NO_COLOR=1`;
-- Cyber Console unit tests и расширенный `--tui-smoke`;
-- новое SVG-preview интерфейса.
-
-### Изменено
-
-- spinner длительных операций заменён общей Action Console;
-- dashboard стал визуально ближе к NexRoute и использует системные badges;
-- selection screens и Change Explorer переведены на единый cyber theme;
-- версия EXE, снимков и portable package обновлена до `0.5.0`;
-- документация панели полностью переписана.
-
-### Безопасность
-
-- анимации отключаются автоматически в CI и при redirected output;
-- boot sequence является только представлением и не запускает дополнительные команды;
-- status markers остаются читаемыми без цвета;
-- Ctrl+C продолжает корректно отменять операции;
-- captured paths, commands и arguments никогда не выполняются интерфейсом.
+- Cyber Console tests и SVG-preview.
 
 ## [0.4.0] — 2026-08-01
 
 ### Добавлено
 
-- полноэкранный `Terminal Control Center` при запуске `sysdiff` без аргументов;
-- ASCII-логотип и профессиональная Windows CLI-компоновка;
-- управление `↑/↓`, `Enter`, `Esc`, `/`, `F`, `S`, `R`, `E`, `F5`, `Q`;
-- компактный режим для узкого терминала;
-- Snapshot Center с созданием, просмотром, экспортом, импортом и удалением;
-- Comparison Lab с overview, Change Explorer, поиском, фильтром и сортировкой;
-- пошаговый Watch Session;
-- интерактивный Process/Network Live Monitor;
-- Reports & Bundles center;
-- Diagnostics screen;
-- spinner и snapshot progress animations;
-- `--tui-smoke` для CI;
-- отдельные TUI unit tests;
-- SVG-preview панели в README.
-
-### Изменено
-
-- обычный CLI сохранён для автоматизации, но больше не является единственным интерфейсом;
-- interactive launch подавляет console logger, чтобы не ломать панели;
-- версия EXE, снимков и portable package обновлена до `0.4.0`.
-
-### Безопасность
-
-- TUI не запускается при redirected stdin/stdout;
-- состояние цветов и курсора восстанавливается через `IDisposable`;
-- Watch timeout не завершает процессы;
-- Live Monitor не читает содержимое трафика;
-- опасные удаления требуют подтверждения.
+- полноэкранный Terminal Control Center;
+- управление стрелками;
+- Snapshot Center, Comparison Lab, Watch Session и Live Monitor;
+- Reports & Bundles, Diagnostics, Settings и About;
+- TUI tests и smoke frame.
 
 ## [0.3.0] — 2026-08-01
 
@@ -85,20 +89,25 @@
 
 - live process/network monitor;
 - network configuration provider;
-- `.sdshot`, investigation bundle и custom profiles;
-- cross-machine compare, move/rename и Provider SDK;
-- автоматическое маскирование `%USERPROFILE%`.
+- `.sdshot` и investigation bundle;
+- пользовательские профили;
+- cross-machine compare;
+- move/rename detection;
+- Provider SDK;
+- privacy redaction.
 
 ## [0.2.0] — 2026-08-01
 
 ### Добавлено
 
 - Windows Firewall, установленные приложения, драйверы и сертификаты;
-- ожидание дочерних процессов и timeout `watch`.
+- ожидание дерева процессов;
+- дополнительные severity/noise rules.
 
 ## [0.1.0] — 2026-08-01
 
 ### Добавлено
 
 - архитектура Domain/Core/Storage/Providers/Reporting/CLI;
-- снимки, сравнение, отчёты, portable package, tests и CI.
+- snapshots, comparison, reports и SQLite;
+- portable package, tests и GitHub Actions.
