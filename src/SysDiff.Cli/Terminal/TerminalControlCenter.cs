@@ -19,7 +19,7 @@ internal sealed class TerminalControlCenter
         new("doctor", "Node Diagnostics", "система, права, база и providers", "✓"),
         new("settings", "System Settings", "пути, режим хранения и hotkeys", "⚙"),
         new("about", "About Node", "версия, безопасность и назначение", "i"),
-        new("exit", "Disconnect", "закрыть Terminal Control Center", "×")
+        new("exit", "Disconnect", "закрыть Cyber Control Node", "×")
     ];
 
     private readonly AppPaths _paths;
@@ -966,7 +966,7 @@ internal sealed class TerminalControlCenter
             "Terminal UI",
             TerminalCapabilities.IsInteractive ? "interactive console detected" : "redirected/non-interactive"));
         diagnostics.Add(new TerminalDiagnosticItem(
-            TerminalCapabilities.GetSafeWindowWidth() >= 92 ? TerminalDiagnosticState.Ok : TerminalDiagnosticState.Warning,
+            TerminalCapabilities.GetSafeWindowWidth() >= 96 ? TerminalDiagnosticState.Ok : TerminalDiagnosticState.Warning,
             "Window size",
             $"{TerminalCapabilities.GetSafeWindowWidth() + 1}×{TerminalCapabilities.GetSafeWindowHeight()}"));
         _renderer.RenderDiagnostics(diagnostics);
@@ -976,7 +976,7 @@ internal sealed class TerminalControlCenter
     {
         _renderer.ShowMessage(
             "SYSTEM SETTINGS // COMMAND DECK",
-            $"Режим хранения: {(_paths.Portable ? "portable" : "user profile")}{Environment.NewLine}Данные: {_paths.DataDirectory}{Environment.NewLine}SQLite: {_paths.DatabasePath}{Environment.NewLine}Отчёты: {_paths.ReportsDirectory}{Environment.NewLine}Логи: {_paths.LogsDirectory}{Environment.NewLine}{Environment.NewLine}Горячие клавиши:{Environment.NewLine}↑/↓ — навигация{Environment.NewLine}Enter — открыть{Environment.NewLine}Esc — назад{Environment.NewLine}/ — поиск изменений{Environment.NewLine}F — severity filter{Environment.NewLine}S — сортировка{Environment.NewLine}R — raw changes{Environment.NewLine}E — экспорт{Environment.NewLine}1–9 — открыть модуль напрямую`nP/B/A — Snapshot Node`nC — Diff Lab`nW — Watch Operations`nL — Live Signal`nD — Node Diagnostics`nF5 — обновить Control Node{Environment.NewLine}Q — выход");
+            $"Режим хранения: {(_paths.Portable ? "portable" : "user profile")}{Environment.NewLine}Данные: {_paths.DataDirectory}{Environment.NewLine}SQLite: {_paths.DatabasePath}{Environment.NewLine}Отчёты: {_paths.ReportsDirectory}{Environment.NewLine}Логи: {_paths.LogsDirectory}{Environment.NewLine}{Environment.NewLine}Горячие клавиши:{Environment.NewLine}↑/↓ — навигация{Environment.NewLine}Enter — открыть{Environment.NewLine}Esc — назад{Environment.NewLine}/ — поиск изменений{Environment.NewLine}F — severity filter{Environment.NewLine}S — сортировка{Environment.NewLine}R — raw changes{Environment.NewLine}E — экспорт{Environment.NewLine}1–9 — открыть модуль напрямую{Environment.NewLine}P/B/A — Snapshot Node{Environment.NewLine}C — Diff Lab{Environment.NewLine}W — Watch Operations{Environment.NewLine}L — Live Signal{Environment.NewLine}D — Node Diagnostics{Environment.NewLine}F5 — обновить Control Node{Environment.NewLine}Q — выход");
     }
 
     private void RunAbout()
@@ -1044,4 +1044,5 @@ internal sealed class TerminalControlCenter
         return principal.IsInRole(WindowsBuiltInRole.Administrator);
     }
 }
+
 
