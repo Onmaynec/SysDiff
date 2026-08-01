@@ -1,41 +1,214 @@
-name: Релиз
+name: Полноценный релиз
 
 on:
-  push:
-    tags:
-      - "v*.*.*"
+  pull_request:
+    types: [ready_for_review]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Commit, branch or tag to release
+        required: false
+        default: main
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: sysdiff-release-${{ github.event.pull_request.number || inputs.ref || github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  release:
+  release-after-merge:
+    if: >-
+      github.repository == 'Onmaynec/SysDiff' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.pull_request.head.repo.full_name == github.repository &&
+        startsWith(github.event.pull_request.head.ref, 'agent/sysdiff-v')))
     runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
 
     steps:
-      - name: Получить код
+      - name: Дождаться squash merge
+        id: target
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            "sha=${{ inputs.ref }}" >> $env:GITHUB_OUTPUT
+            "branch=" >> $env:GITHUB_OUTPUT
+            exit 0
+          }
+
+          $number = "${{ github.event.pull_request.number }}"
+          $deadline = [DateTimeOffset]::UtcNow.AddMinutes(45)
+          while ([DateTimeOffset]::UtcNow -lt $deadline) {
+            $pull = gh api "repos/${{ github.repository }}/pulls/$number" | ConvertFrom-Json
+            if ($pull.merged -eq $true) {
+              "sha=$($pull.merge_commit_sha)" >> $env:GITHUB_OUTPUT
+              "branch=${{ github.event.pull_request.head.ref }}" >> $env:GITHUB_OUTPUT
+              Write-Host "PR #$number merged as $($pull.merge_commit_sha)"
+              exit 0
+            }
+            if ($pull.state -eq "closed") {
+              throw "PR #$number закрыт без merge. Релиз отменён."
+            }
+            Write-Host "PR #$number ещё открыт. Следующая проверка через 20 секунд."
+            Start-Sleep -Seconds 20
+          }
+          throw "PR не был объединён за 45 минут."
+
+      - name: Получить merged-код
         uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.target.outputs.sha }}
+          fetch-depth: 0
 
       - name: Установить .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
-      - name: Определить версию
+      - name: Определить и проверить версию
         id: version
         shell: pwsh
         run: |
-          $version = "${{ github.ref_name }}".TrimStart("v")
+          [xml]$project = Get-Content .\src\SysDiff.Cli\SysDiff.Cli.csproj -Raw
+          $version = [string]$project.Project.PropertyGroup.Version
+          if ($version -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') {
+            throw "Release version должна быть стабильной SemVer X.Y.Z: $version"
+          }
+          $branch = "${{ steps.target.outputs.branch }}"
+          if ($branch) {
+            $branchVersion = $branch -replace '^agent/sysdiff-v', ''
+            if ($branchVersion -ne $version) {
+              throw "Версия ветки $branchVersion не совпадает с проектом $version"
+            }
+          }
+          $tag = "v$version"
           "value=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
 
-      - name: Собрать пакет
+      - name: Проверить отсутствие существующего релиза
+        id: existing
         shell: pwsh
-        run: ./scripts/package.ps1 -Version "${{ steps.version.outputs.value }}"
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          gh release view $tag --repo "${{ github.repository }}" *> $null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release $tag уже существует. Повторная публикация не нужна."
+            "skip=true" >> $env:GITHUB_OUTPUT
+          }
+          else {
+            "skip=false" >> $env:GITHUB_OUTPUT
+          }
 
-      - name: Создать GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Восстановить зависимости
+        if: steps.existing.outputs.skip != 'true'
+        run: dotnet restore SysDiff.sln
+
+      - name: Запустить полный набор тестов
+        if: steps.existing.outputs.skip != 'true'
+        run: dotnet test SysDiff.sln --configuration Release --no-restore
+
+      - name: Собрать официальный portable package
+        if: steps.existing.outputs.skip != 'true'
+        shell: pwsh
+        run: ./scripts/package.ps1 -Version "${{ steps.version.outputs.value }}" -Runtime win-x64
+
+      - name: Выполнить release smoke-test
+        if: steps.existing.outputs.skip != 'true'
+        shell: pwsh
+        run: >-
+          ./scripts/smoke-test.ps1
+          -Executable .\artifacts\publish\win-x64\sysdiff.exe
+          -ExpectedVersion "${{ steps.version.outputs.value }}"
+
+      - name: Проверить release manifest и SHA-256
+        if: steps.existing.outputs.skip != 'true'
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.value }}"
+          $asset = "SysDiff-$version-win-x64.zip"
+          $zip = Join-Path artifacts $asset
+          $manifest = Get-Content .\artifacts\release-manifest.json -Raw | ConvertFrom-Json
+          $actualHash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($manifest.schemaVersion -ne 1 -or
+              $manifest.product -ne "SysDiff" -or
+              $manifest.version -ne $version -or
+              $manifest.channel -ne "stable" -or
+              $manifest.runtime -ne "win-x64" -or
+              $manifest.tag -ne "v$version" -or
+              $manifest.assetName -ne $asset -or
+              $manifest.sha256 -ne $actualHash -or
+              [long]$manifest.sizeBytes -ne (Get-Item $zip).Length) {
+            throw "Release manifest validation failed"
+          }
+          $checksum = (Get-Content "$zip.sha256" -Raw).Trim()
+          if (-not $checksum.StartsWith("$actualHash  $asset", [StringComparison]::Ordinal)) {
+            throw "Checksum file validation failed"
+          }
+
+      - name: Создать и отправить аннотированный тег
+        if: steps.existing.outputs.skip != 'true'
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a $tag "${{ steps.target.outputs.sha }}" -m "SysDiff $tag — Release Channel"
+          git push origin $tag
+
+      - name: Создать provenance attestation для ZIP
+        if: steps.existing.outputs.skip != 'true'
+        uses: actions/attest-build-provenance@v2
         with:
-          generate_release_notes: true
-          files: |
-            artifacts/SysDiff-${{ steps.version.outputs.value }}-win-x64.zip
-            artifacts/SysDiff-${{ steps.version.outputs.value }}-win-x64.zip.sha256
+          subject-path: artifacts/SysDiff-${{ steps.version.outputs.value }}-win-x64.zip
+
+      - name: Создать provenance attestation для manifest
+        if: steps.existing.outputs.skip != 'true'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: artifacts/release-manifest.json
+
+      - name: Опубликовать GitHub Release
+        if: steps.existing.outputs.skip != 'true'
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.value }}"
+          $tag = "v$version"
+          $notes = ".\docs\releases\v$version.md"
+          if (-not (Test-Path $notes)) {
+            throw "Release notes не найдены: $notes"
+          }
+          gh release create $tag `
+            ".\artifacts\SysDiff-$version-win-x64.zip" `
+            ".\artifacts\SysDiff-$version-win-x64.zip.sha256" `
+            ".\artifacts\release-manifest.json" `
+            --repo "${{ github.repository }}" `
+            --verify-tag `
+            --latest `
+            --title "SysDiff $version — Release Channel" `
+            --notes-file $notes
+
+      - name: Проверить опубликованный release
+        if: steps.existing.outputs.skip != 'true'
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          $release = gh release view $tag --repo "${{ github.repository }}" --json tagName,isDraft,isPrerelease,assets | ConvertFrom-Json
+          if ($release.tagName -ne $tag -or $release.isDraft -or $release.isPrerelease) {
+            throw "GitHub Release имеет неправильный статус"
+          }
+          $names = @($release.assets | ForEach-Object name)
+          foreach ($required in @(
+            "SysDiff-${{ steps.version.outputs.value }}-win-x64.zip",
+            "SysDiff-${{ steps.version.outputs.value }}-win-x64.zip.sha256",
+            "release-manifest.json")) {
+            if ($required -notin $names) {
+              throw "В GitHub Release отсутствует asset: $required"
+            }
+          }
