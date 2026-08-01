@@ -14,7 +14,7 @@ public static class CyberTheme
 {
     public const string Version = "0.6.0";
     public const string ProductTitle = "SYSDIFF CYBER CONSOLE";
-    public const string ProductSubtitle = "WINDOWS DRIFT INVESTIGATION NODE";
+    public const string ProductSubtitle = "WINDOWS DRIFT OPERATIONS NODE";
 
     public static ConsoleColor Accent => ConsoleColor.Green;
 
