@@ -15,6 +15,23 @@ internal static class Program
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         AppPaths paths = AppPaths.Resolve();
 
+        string[] cleanArgs;
+        IReadOnlyList<ISnapshotProvider> pluginProviders;
+        try
+        {
+            (cleanArgs, string[] pluginPaths) = PluginProviderLoader.ExtractArguments(args);
+            pluginProviders = PluginProviderLoader.Load(pluginPaths);
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException
+            or FileNotFoundException
+            or InvalidDataException
+            or BadImageFormatException)
+        {
+            Console.Error.WriteLine($"Ошибка плагина: {exception.Message}");
+            return 2;
+        }
+
         var services = new ServiceCollection();
         services.AddSingleton(paths);
         services.AddLogging(builder =>
@@ -28,6 +45,8 @@ internal static class Program
         });
 
         services.AddSingleton<ProfileCatalog>();
+        services.AddSingleton<ProfileLoader>();
+        services.AddSingleton<PrivacyRedactor>();
         services.AddSingleton<ISeverityEngine, SeverityEngine>();
         services.AddSingleton<INoiseFilterEngine, NoiseFilterEngine>();
         services.AddSingleton<ComparisonEngine>();
@@ -38,6 +57,7 @@ internal static class Program
 
         services.AddSingleton<ISnapshotStore>(_ =>
             new SqliteSnapshotStore(paths.DatabasePath));
+        services.AddSingleton<SnapshotArchiveService>();
 
         services.AddSingleton<ISnapshotProvider, FileSystemProvider>();
         services.AddSingleton<ISnapshotProvider, RegistryProvider>();
@@ -49,8 +69,17 @@ internal static class Program
         services.AddSingleton<ISnapshotProvider, InstalledAppsProvider>();
         services.AddSingleton<ISnapshotProvider, DriversProvider>();
         services.AddSingleton<ISnapshotProvider, CertificatesProvider>();
+        services.AddSingleton<ISnapshotProvider, NetworkConfigurationProvider>();
+        foreach (ISnapshotProvider pluginProvider in pluginProviders)
+        {
+            services.AddSingleton(typeof(ISnapshotProvider), pluginProvider);
+        }
 
         services.AddSingleton<SnapshotCoordinator>();
+        services.AddSingleton<ProcessLiveMonitor>();
+        services.AddSingleton<NetworkLiveMonitor>();
+        services.AddSingleton<InvestigationBundleService>();
+        services.AddSingleton<V3CommandRouter>();
         services.AddSingleton<CommandApp>();
 
         await using ServiceProvider provider = services.BuildServiceProvider();
@@ -67,8 +96,9 @@ internal static class Program
 
         try
         {
-            return await provider.GetRequiredService<CommandApp>()
-                .RunAsync(args, cancellation.Token);
+            CommandApp fallback = provider.GetRequiredService<CommandApp>();
+            return await provider.GetRequiredService<V3CommandRouter>()
+                .RunAsync(cleanArgs, fallback, cancellation.Token);
         }
         catch (OperationCanceledException)
         {
