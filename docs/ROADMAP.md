@@ -53,17 +53,44 @@ Roadmap отражает направление проекта, а не обещ
 - [x] active case links;
 - [x] additive SQLite migration;
 - [x] legacy timeline reconstruction;
-- [x] CLI/TUI/storage/risk tests;
-- [x] русская документация и SVG-preview.
+- [x] CLI/TUI/storage/risk tests.
+
+## 0.7.0 — Release Channel ✅
+
+- [x] tagged GitHub Releases;
+- [x] release manifest и SHA-256;
+- [x] provenance attestations;
+- [x] stable updater;
+- [x] staged install, backup и rollback;
+- [x] Update Center.
+
+## 0.8.0 — Compatibility Center ✅
+
+- [x] format/schema compatibility matrix;
+- [x] read-only `.sdshot` inspection;
+- [x] JSON status для CI;
+- [x] future schema rejection;
+- [x] exact checksum validation;
+- [x] manifest/snapshot invariant checks;
+- [x] compatibility policy и recovery guide.
+
+## 0.9.x — подготовка стабильной схемы
+
+- [ ] JSON Schema для snapshot, comparison и bundle;
+- [ ] golden fixtures версий 0.3–0.8;
+- [ ] migration dry-run и backup workflow;
+- [ ] документированная reader/writer matrix;
+- [ ] deprecation policy;
+- [ ] fixtures для unsupported/newer formats.
 
 ## 1.0.0 — стабильность
 
 - [ ] стабильная публичная schema;
 - [ ] полноценные migration paths;
-- [ ] signed releases и attestations;
+- [ ] Authenticode signed releases;
 - [ ] безопасный rollback preview/handlers;
 - [ ] snapshots с миллионами objects;
 - [ ] полная RU/EN localization;
-- [ ] документированная backward compatibility.
+- [ ] гарантированная backward compatibility policy.
 
 Актуальные задачи находятся в [GitHub Issues](https://github.com/Onmaynec/SysDiff/issues).
