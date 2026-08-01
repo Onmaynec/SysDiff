@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Executable = ".\artifacts\publish\win-x64\sysdiff.exe",
-    [string]$ExpectedVersion = "0.7.0"
+    [string]$ExpectedVersion = "0.8.0"
 )
 
 $ErrorActionPreference = "Stop"
@@ -24,13 +24,21 @@ if (-not $fileVersion.StartsWith($ExpectedVersion, [System.StringComparison]::Or
 }
 
 $helpOutput = (& $Executable --help | Out-String)
-if ($LASTEXITCODE -ne 0 -or $helpOutput -notmatch "RELEASE CHANNEL 0.7") {
-    throw "Команда --help не содержит Release Channel 0.7"
+if ($LASTEXITCODE -ne 0 -or $helpOutput -notmatch "COMPATIBILITY CENTER 0.8") {
+    throw "Команда --help не содержит Compatibility Center 0.8"
 }
-if ($helpOutput -notmatch "update check" -or
+if ($helpOutput -notmatch "compatibility inspect" -or
     $helpOutput -notmatch "update install --yes" -or
     $helpOutput -notmatch "DRIFT OPERATIONS 0.6") {
-    throw "Команда --help не содержит updater и Drift Operations"
+    throw "Команда --help не содержит compatibility, updater и Drift Operations"
+}
+
+$compatibilityStatus = (& $Executable compatibility status --json | Out-String)
+if ($LASTEXITCODE -ne 0 -or
+    $compatibilityStatus -notmatch '"productVersion": "0.8.0"' -or
+    $compatibilityStatus -notmatch '"currentFormatVersion": 1' -or
+    $compatibilityStatus -notmatch '"currentSchemaVersion": 1') {
+    throw "Команда compatibility status --json не прошла smoke-проверку"
 }
 
 $doctorOutput = (& $Executable doctor | Out-String)
@@ -50,7 +58,7 @@ if ($LASTEXITCODE -ne 0 -or $caseOutput -notmatch "Кейсов пока нет"
 
 $updateStatus = (& $Executable update status --json | Out-String)
 if ($LASTEXITCODE -ne 0 -or
-    $updateStatus -notmatch '"currentVersion": "0.7.0"' -or
+    $updateStatus -notmatch '"currentVersion": "0.8.0"' -or
     $updateStatus -notmatch '"status":') {
     throw "Команда update status --json не прошла smoke-проверку"
 }
@@ -72,14 +80,14 @@ finally {
     Remove-Item Env:SYSDIFF_NO_ANIMATIONS -ErrorAction SilentlyContinue
     Remove-Item Env:NO_COLOR -ErrorAction SilentlyContinue
 }
-if ($LASTEXITCODE -ne 0 -or $tuiOutput -notmatch "SYSDIFF CYBER CONSOLE 0.7.0") {
+if ($LASTEXITCODE -ne 0 -or $tuiOutput -notmatch "SYSDIFF CYBER CONSOLE 0.8.0") {
     throw "Cyber Console smoke frame не сформирован"
 }
-if ($tuiOutput -notmatch "RELEASE CHANNEL" -or
-    $tuiOutput -notmatch "UPDATE CENTER" -or
-    $tuiOutput -notmatch "SHA-256" -or
-    $tuiOutput -notmatch "ROLLBACK SAFE") {
-    throw "Smoke frame не содержит ключевые блоки Release Channel"
+if ($tuiOutput -notmatch "COMPATIBILITY CENTER" -or
+    $tuiOutput -notmatch "SDSHOT: VERIFIED" -or
+    $tuiOutput -notmatch "NEWER FORMAT: REJECT" -or
+    $tuiOutput -notmatch "IMPORT: ATOMIC") {
+    throw "Smoke frame не содержит ключевые блоки Compatibility Center"
 }
 
-Write-Host "✅ Smoke-тест SysDiff $ExpectedVersion и Release Channel пройден." -ForegroundColor Green
+Write-Host "✅ Smoke-тест SysDiff $ExpectedVersion и Compatibility Center пройден." -ForegroundColor Green
