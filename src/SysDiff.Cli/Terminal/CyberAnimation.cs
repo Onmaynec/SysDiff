@@ -4,9 +4,13 @@ public static class CyberAnimation
 {
     private const string SpinnerFrames = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏";
 
-    public static char Spinner(int tick) => SpinnerFrames[Math.Abs(tick) % SpinnerFrames.Length];
+    public static char Spinner(int tick)
+    {
+        int index = PositiveModulo(tick, SpinnerFrames.Length);
+        return SpinnerFrames[index];
+    }
 
-    public static string Pulse(int tick) => Math.Abs(tick) % 4 switch
+    public static string Pulse(int tick) => PositiveModulo(tick, 4) switch
     {
         0 => "·",
         1 => "∙",
@@ -23,7 +27,7 @@ public static class CyberAnimation
         string result = new string('█', filled) + new string('░', safeWidth - filled);
         if (normalized < 1d && safeWidth > 2)
         {
-            int scanner = Math.Abs(tick) % safeWidth;
+            int scanner = PositiveModulo(tick, safeWidth);
             char[] chars = result.ToCharArray();
             chars[scanner] = chars[scanner] == '█' ? '▓' : '▒';
             result = new string(chars);
@@ -36,7 +40,7 @@ public static class CyberAnimation
     {
         int safeWidth = Math.Max(8, width);
         char[] line = Enumerable.Repeat('·', safeWidth).ToArray();
-        int position = Math.Abs(tick) % safeWidth;
+        int position = PositiveModulo(tick, safeWidth);
         line[position] = '█';
         if (position > 0)
         {
@@ -54,5 +58,11 @@ public static class CyberAnimation
         ArgumentNullException.ThrowIfNull(value);
         int count = Math.Clamp(visibleCharacters, 0, value.Length);
         return value[..count] + new string(' ', value.Length - count);
+    }
+
+    private static int PositiveModulo(int value, int divisor)
+    {
+        int remainder = value % divisor;
+        return remainder < 0 ? remainder + divisor : remainder;
     }
 }
