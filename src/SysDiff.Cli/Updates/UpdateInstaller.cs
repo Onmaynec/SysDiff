@@ -101,7 +101,7 @@ public sealed class UpdateInstaller
         startInfo.ArgumentList.Add("-RestartAfterInstall");
         startInfo.ArgumentList.Add(restartAfterInstall ? "true" : "false");
 
-        Process.Start(startInfo)
+        _ = Process.Start(startInfo)
             ?? throw new InvalidOperationException("Не удалось запустить update helper.");
         await _store.SaveStateAsync(
             state with { Status = UpdateStatus.InstallScheduled, Error = null },
