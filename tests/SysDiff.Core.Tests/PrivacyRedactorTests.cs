@@ -34,6 +34,9 @@ public sealed class PrivacyRedactorTests
         SysDiff.Domain.SystemArtifact result = redactor.RedactArtifact(artifact);
 
         Assert.DoesNotContain("Bob", result.Identity, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("%USERPROFILE%", result.Properties["Path"].Value);
+        Assert.Contains(
+            "%USERPROFILE%",
+            result.Properties["Path"].Value ?? string.Empty,
+            StringComparison.OrdinalIgnoreCase);
     }
 }
