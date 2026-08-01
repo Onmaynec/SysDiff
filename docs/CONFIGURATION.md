@@ -1,41 +1,6 @@
 # ⚙️ Конфигурация
 
-Основной файл — `sysdiff.json`. В версии 0.2.0 он поставляется как документированный шаблон; встроенные профили и пути инициализируются кодом.
-
-## Пример
-
-```json
-{
-  "schemaVersion": 1,
-  "storage": {
-    "dataDirectory": "%LocalAppData%\\SysDiff",
-    "retentionDays": 90,
-    "maximumDatabaseSizeMb": 4096
-  },
-  "capture": {
-    "defaultProfile": "standard",
-    "parallelProviders": 1,
-    "continueOnProviderError": true
-  },
-  "comparison": {
-    "noiseMode": "Balanced",
-    "defaultMinimumSeverity": "Info"
-  },
-  "privacy": {
-    "storeMachineName": false,
-    "storeUserName": false,
-    "redactUserProfilePath": true,
-    "redactSecrets": true
-  },
-  "ui": {
-    "language": "ru",
-    "animations": false,
-    "theme": "dark"
-  }
-}
-```
-
-JSON Schema: [`../schemas/config.schema.json`](../schemas/config.schema.json).
+Основной шаблон — `sysdiff.json`. Встроенные пути и профили инициализируются кодом; версия 0.3 также поддерживает пользовательский профиль из JSON.
 
 ## Каталоги
 
@@ -48,7 +13,7 @@ JSON Schema: [`../schemas/config.schema.json`](../schemas/config.schema.json).
 └── reports\
 ```
 
-Portable-режим включается пустым файлом `portable.mode` рядом с `sysdiff.exe`:
+Portable-режим включается файлом `portable.mode` рядом с `sysdiff.exe`:
 
 ```text
 SysDiff\
@@ -56,65 +21,71 @@ SysDiff\
 ├── portable.mode
 ├── data\
 ├── logs\
-└── reports\
+├── reports\
+├── profiles\
+└── plugins\
 ```
+
+Каталог `plugins` не сканируется автоматически.
 
 ## Встроенные профили
 
-### `minimal`
+- `minimal`: службы, задачи, startup, environment, Firewall, apps, network configuration;
+- `standard`: всё из minimal + filesystem, registry, drivers, certificates;
+- `full`: расширенные roots и Full hashing.
 
-Быстрый снимок:
-
-- службы и задачи планировщика;
-- автозагрузка и окружение;
-- Windows Firewall;
-- установленные приложения.
-
-### `standard`
-
-Профиль по умолчанию:
-
-- всё из `minimal`;
-- выбранные каталоги и разделы реестра;
-- системные драйверы;
-- сертификаты Windows;
-- Smart hashing файлов.
-
-### `full`
-
-Ресурсоёмкий профиль:
-
-- все провайдеры;
-- расширенные корни файловой системы и реестра;
-- Full hashing;
-- увеличенные глубина и лимиты объектов.
-
-Схема будущего пользовательского профиля:
-[`../schemas/profile.schema.json`](../schemas/profile.schema.json).
-
-Пример структуры:
-[`../samples/profiles/installer-audit.json`](../samples/profiles/installer-audit.json).
-
-## Параметры командной строки
-
-Профиль выбирается так:
+## Пользовательский профиль
 
 ```powershell
-sysdiff snapshot create before --profile minimal
-sysdiff snapshot create before --profile standard
-sysdiff snapshot create before --profile full --yes
+sysdiff profile load .\profile.json
+sysdiff snapshot create custom --profile-file .\profile.json
 ```
 
-Параметры `watch`, включая тайм-аут и ожидание дерева процессов, описаны в [COMMANDS.md](COMMANDS.md).
+Пример:
 
-## Приоритет настроек
+```json
+{
+  "name": "installer-audit",
+  "description": "Проверка установщика",
+  "providers": {
+    "filesystem": {
+      "enabled": true,
+      "roots": ["%ProgramFiles%", "%LocalAppData%"],
+      "exclude": ["**\\Cache\\**"],
+      "hashMode": "Smart",
+      "maximumDepth": 8,
+      "maximumArtifacts": 250000
+    },
+    "registry": {
+      "enabled": true,
+      "roots": ["HKCU\\Software", "HKLM64\\Software"]
+    },
+    "network-configuration": {
+      "enabled": true
+    }
+  }
+}
+```
 
-Целевая модель проекта:
+Проверки:
+
+- непустое `name`;
+- минимум один provider;
+- provider должен быть встроенным или явно загруженным plugin;
+- `maximumDepth`: 0–256;
+- `maximumArtifacts`: 1–5 000 000;
+- некорректный JSON показывает путь проблемного поля.
+
+Схема: [`../schemas/profile.schema.json`](../schemas/profile.schema.json). Пример: [`../samples/profiles/installer-audit.json`](../samples/profiles/installer-audit.json).
+
+## Конфиденциальность
+
+Версия 0.3 применяет маскирование `%USERPROFILE%` до сохранения артефактов. Имя компьютера не сохраняется открыто; для межмашинного сравнения используется SHA-256 fingerprint.
+
+## Приоритет
 
 1. встроенные значения;
-2. глобальная конфигурация;
-3. пользовательская конфигурация;
-4. профиль;
-5. параметры CLI.
+2. выбранный встроенный профиль или `--profile-file`;
+3. параметры конкретной CLI-команды.
 
-В версии `0.2.0` полностью реализованы встроенные профили и параметры CLI. Загрузка произвольного пользовательского профиля из JSON запланирована для `0.3.0`.
+Полная загрузка всех полей `sysdiff.json` как runtime overrides остаётся задачей будущей стабильной конфигурации.
