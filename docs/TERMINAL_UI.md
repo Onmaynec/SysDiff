@@ -1,96 +1,162 @@
-# 🖥️ Terminal Control Center
+# 🟢 SysDiff Cyber Console
 
-SysDiff 0.4.0 запускает полноэкранную панель, когда команда вызвана без аргументов в обычном интерактивном терминале:
+SysDiff 0.5.0 запускает полноэкранный **Cyber Control Node**, когда команда вызвана без аргументов в обычном интерактивном терминале:
 
 ```powershell
 sysdiff
 ```
 
-CLI-команды с аргументами не открывают панель и сохраняют прежний текстовый вывод.
+CLI-команды с аргументами не открывают панель и сохраняют стабильный текстовый вывод для PowerShell, скриптов и CI.
 
-## Компоновка
+## Концепция
 
-Широкий режим содержит четыре области:
+Интерфейс построен по модели самостоятельной системной утилиты и визуально приближен к NexRoute:
+
+- крупный ASCII-логотип;
+- чёрный фон и neon green/cyan palette;
+- нумерованные модули `[01]`…`[09]`;
+- системные badges и телеметрия узла;
+- Command Deck для быстрого запуска;
+- отдельная Action Console для длительных операций;
+- живой Provider Stream во время снимка;
+- маркеры состояния, читаемые даже без цвета.
+
+## Главный экран
 
 ```text
-┌──────────────────────────────────────────────────────────────────────┐
-│ ASCII logo · SysDiff 0.4.0                                          │
-├──────────────────────────────┬───────────────────────────────────────┤
-│ Navigation                   │ System overview                       │
-│ ▶ Snapshot Center            │ Windows / architecture / privileges   │
-│   Comparison Lab             │ snapshots / reports / providers       │
-│   Watch Session              │ data directory                        │
-├──────────────────────────────┴───────────────────────────────────────┤
-│ ↑↓ Navigate · Enter Open · Esc Back · F5 Refresh · Q Exit           │
-└──────────────────────────────────────────────────────────────────────┘
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                        SYSDIFF CYBER CONSOLE                        ┃
+┃              WINDOWS INVESTIGATION CONTROL NODE // 0.5.0           ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃ [ NODE:ONLINE ] [ ROOT:ADMIN ] [ OS:10.0.26100 ] [ ARCH:X64 ]       ┃
+┃ [ SNAPSHOTS:4 ] [ REPORTS:7 ] [ PROVIDERS:11 ] [ STORAGE:PROFILE ]  ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃ ▶ [01] ◆ SNAPSHOT NODE       // capture, browse and transfer        ┃
+┃   [02] ◇ DIFF LAB            // compare and investigate             ┃
+┃   [03] ▶ WATCH OPERATIONS    // controlled program session          ┃
+┃   [04] ● LIVE SIGNAL         // processes and network endpoints     ┃
+┃   [05] ▤ REPORT VAULT        // reports and investigation bundles   ┃
+┃   [06] ✓ NODE DIAGNOSTICS    // Windows, rights, SQLite, providers  ┃
+┃   [07] ⚙ SYSTEM SETTINGS     // paths, motion and colors            ┃
+┃   [08] i ABOUT               // version, purpose and security       ┃
+┃   [09] × DISCONNECT          // close the local control node        ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃ QUICK OPS > 1-9 · P/B/A SNAPSHOT · C DIFF · W WATCH · L LIVE · D   ┃
+┃ NAV > ↑↓ MOVE · ENTER EXECUTE · ESC BACK · F5 RESCAN · Q EXIT      ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
-Если ширина окна меньше 92 символов, интерфейс автоматически переключается в компактный одноколоночный режим.
+Если ширина окна меньше 96 символов, панель автоматически использует compact layout.
 
-## Горячие клавиши
+## Command Deck
 
-| Клавиша | Область | Действие |
+| Клавиша | Действие |
+|---|---|
+| `1`…`9` | открыть соответствующий модуль |
+| `P`, `B`, `A` | Snapshot Node |
+| `C` | Diff Lab |
+| `W` | Watch Operations |
+| `L` | Live Signal Monitor |
+| `D` | Node Diagnostics |
+| `↑` / `↓` | перемещение по меню или списку |
+| `Home` / `End` | первый или последний элемент |
+| `Enter` | открыть или подтвердить |
+| `Esc` | назад |
+| `Q` | выход или закрытие текущего browser |
+| `F5` | повторно прочитать состояние dashboard |
+
+В Change Explorer дополнительно используются `/`, `F`, `S`, `R` и `E`.
+
+## Boot sequence
+
+Короткая анимация выполняется только при интерактивном запуске:
+
+1. terminal channel;
+2. local storage;
+3. snapshot providers;
+4. comparison engine;
+5. live monitors;
+6. control node online.
+
+Boot sequence является только визуальным представлением. Он не запускает дополнительные проверки, не изменяет систему и может быть пропущен любой клавишей.
+
+По умолчанию вся последовательность занимает меньше полутора секунд.
+
+## Action Console
+
+Все операции, которые раньше показывали одиночный spinner, используют общую Action Console:
+
+```text
+[OK] CONTROL CHANNEL
+[>>] FORMING INVESTIGATION BUNDLE
+[--] COMMIT RESULT
+
+STREAM █████████████▓▒░░░░░░  64%
+SCAN   ·······▓████··········
+TRACE  > packing snapshots, comparison and reports
+```
+
+Панель показывает:
+
+- состояние этапов `queued/running/completed/failed/cancelled`;
+- elapsed time;
+- PID процесса SysDiff;
+- progress и scanner bars;
+- текущую операцию;
+- итоговый результат;
+- подсказку `Ctrl+C` для отмены.
+
+Action Console применяется к импорту/экспорту `.sdshot`, формированию отчётов, investigation bundle, ожиданию процессов, stabilization delay, live monitor и другим длительным действиям.
+
+## Provider Stream
+
+При создании снимка отображаются:
+
+- активный provider;
+- число обработанных артефактов;
+- текущее сообщение provider;
+- путь или системный объект;
+- будущий этап SQLite commit.
+
+Обновление кадра ограничено по частоте, поэтому быстрый provider не создаёт тысячи строк в истории CMD.
+
+## Цвета и маркеры
+
+| Значение | Цвет | Текстовый маркер |
 |---|---|---|
-| `↑` / `↓` | везде | перемещение по меню или списку |
-| `Home` / `End` | списки | первый или последний элемент |
-| `Enter` | везде | открыть или подтвердить |
-| `Esc` | везде | назад |
-| `Q` | dashboard/browser | выйти или закрыть текущий экран |
-| `/` | Change Explorer | поиск по пути, identity, provider и объяснению |
-| `F` | Change Explorer | цикл `Info → Low → Medium → High → Critical` |
-| `S` | Change Explorer | сортировка severity/provider |
-| `R` | Change Explorer | переключение Balanced/Raw presentation |
-| `E` | Change Explorer | экспорт HTML, JSON или Markdown |
-| `F5` | dashboard | обновить счётчики и состояние |
+| успешно | neon green | `[OK]` |
+| выполняется | cyan | `[>>]` |
+| ожидает | dark gray | `[--]` |
+| предупреждение | amber | `[!!]` |
+| ошибка | red | `[XX]` |
+| отменено | amber | `[//]` |
 
-## Snapshot Center
+Маркеры сохраняют смысл при отключённых цветах.
 
-Snapshot Center загружает заголовки снимков из SQLite и предлагает:
+## Safe animation mode
 
-- `Create snapshot`;
-- `Browse snapshots`;
-- `Import .sdshot`.
+Полностью отключить движение:
 
-При создании отображается текущий provider, число обработанных объектов и сокращённый путь. Статусы `Completed`, `Partial` и `Failed` различаются цветом и всегда дублируются текстом.
+```powershell
+$env:SYSDIFF_NO_ANIMATIONS = "1"
+sysdiff
+```
 
-## Comparison Lab
+Отключить цвета:
 
-Пользователь выбирает `before` и `after` стрелками, затем режим шума. Результат показывает:
+```powershell
+$env:NO_COLOR = "1"
+sysdiff
+```
 
-- типы изменений;
-- распределение severity;
-- число скрытых шумовых изменений;
-- предупреждения межмашинного режима;
-- confidence эвристик перемещения и переименования.
+Значения `1`, `true`, `yes` и `on` считаются включёнными.
 
-Change Explorer не изменяет сохранённый результат: поиск, сортировка и фильтрация применяются только к отображению.
+Анимации автоматически отключаются:
 
-## Watch Session
-
-Этапы отображаются отдельно:
-
-1. начальный снимок;
-2. запуск или ручная установка;
-3. ожидание процесса и потомков;
-4. stabilization delay;
-5. итоговый снимок;
-6. сравнение и HTML-отчёт.
-
-Тайм-аут не завершает процессы автоматически.
-
-## Live Monitor
-
-Process Monitor фиксирует `Started` и `Stopped`. Network Monitor фиксирует открытые и закрытые TCP/UDP endpoints. После завершения создаётся JSON-журнал; Markdown включается отдельным подтверждением.
-
-## Анимации
-
-Анимации используются только в интерактивной панели:
-
-- spinner во время импорта, экспорта, ожидания и формирования отчёта;
-- однострочный progress при сборе snapshot providers;
-- итоговые success/warning/error panels.
-
-При redirected output анимации не используются.
+- в CI;
+- при redirected stdout;
+- при неинтерактивном запуске;
+- когда `SYSDIFF_NO_ANIMATIONS` включён.
 
 ## Состояние консоли
 
@@ -99,9 +165,9 @@ Process Monitor фиксирует `Started` и `Stopped`. Network Monitor фи�
 - цвет текста;
 - цвет фона;
 - видимость курсора;
-- очищенный экран при завершении.
+- заголовок и очищенный экран при завершении.
 
-Восстановление выполняется через `IDisposable`, включая выход после исключения.
+Восстановление выполняется через `IDisposable`, включая выход после исключения или отмены.
 
 ## Совместимость
 
@@ -112,4 +178,4 @@ Process Monitor фиксирует `Started` и `Stopped`. Network Monitor фи�
 - PowerShell 7;
 - Windows Terminal.
 
-Рекомендуемый размер окна — не менее `100×28`. При меньшем размере включается компактная компоновка.
+Рекомендуемый размер окна — не менее `105×30`. На меньшем размере используется compact layout, а длинные пути безопасно сокращаются.
