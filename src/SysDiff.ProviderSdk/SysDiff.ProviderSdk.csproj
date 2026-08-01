@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>SysDiff.ProviderSdk</RootNamespace>
+    <Description>Public SDK contracts for explicit SysDiff snapshot provider plugins.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SysDiff.Domain\SysDiff.Domain.csproj" />
+  </ItemGroup>
+</Project>

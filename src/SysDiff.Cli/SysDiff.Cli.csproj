@@ -4,7 +4,7 @@
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <RootNamespace>SysDiff.Cli</RootNamespace>
     <AssemblyName>sysdiff</AssemblyName>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
@@ -13,6 +13,7 @@
     <ProjectReference Include="..\SysDiff.Storage\SysDiff.Storage.csproj" />
     <ProjectReference Include="..\SysDiff.Providers\SysDiff.Providers.csproj" />
     <ProjectReference Include="..\SysDiff.Reporting\SysDiff.Reporting.csproj" />
+    <ProjectReference Include="..\SysDiff.ProviderSdk\SysDiff.ProviderSdk.csproj" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
   </ItemGroup>

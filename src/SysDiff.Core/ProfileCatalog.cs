@@ -34,7 +34,7 @@ public sealed class ProfileCatalog
         new()
         {
             Name = "minimal",
-            Description = "Быстрый снимок служб, задач, автозагрузки, Firewall, приложений и окружения.",
+            Description = "Быстрый снимок служб, задач, автозагрузки, Firewall, приложений, сети и окружения.",
             Providers = new Dictionary<string, ProviderOptions>(StringComparer.OrdinalIgnoreCase)
             {
                 ["services"] = new(),
@@ -42,7 +42,8 @@ public sealed class ProfileCatalog
                 ["startup"] = new(),
                 ["environment"] = new(),
                 ["firewall"] = new(),
-                ["installed-apps"] = new()
+                ["installed-apps"] = new(),
+                ["network-configuration"] = new()
             }
         };
 
@@ -90,7 +91,8 @@ public sealed class ProfileCatalog
                 ["firewall"] = new(),
                 ["installed-apps"] = new(),
                 ["drivers"] = new(),
-                ["certificates"] = new()
+                ["certificates"] = new(),
+                ["network-configuration"] = new()
             }
         };
 
@@ -142,7 +144,8 @@ public sealed class ProfileCatalog
                 ["firewall"] = new(),
                 ["installed-apps"] = new(),
                 ["drivers"] = new(),
-                ["certificates"] = new()
+                ["certificates"] = new(),
+                ["network-configuration"] = new()
             }
         };
 }

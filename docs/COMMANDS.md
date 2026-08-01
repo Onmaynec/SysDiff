@@ -1,6 +1,6 @@
-# ⌨️ Команды SysDiff
+# ⌨️ Команды SysDiff 0.3
 
-## Общие команды
+## Общие
 
 ```powershell
 sysdiff --help
@@ -8,113 +8,118 @@ sysdiff --version
 sysdiff doctor
 ```
 
-`doctor` проверяет Windows, архитектуру, .NET, права администратора, доступность каталога данных и SQLite.
-
-## Снимки
-
-### Создать
+## 📸 Снимки
 
 ```powershell
-sysdiff snapshot create <name>
-sysdiff snapshot create before --profile minimal
-sysdiff snapshot create before --profile standard
-sysdiff snapshot create before --profile full --yes
-sysdiff snapshot create before --require-admin
-```
-
-Код `7` означает, что снимок сохранён, но один или несколько провайдеров завершились частично.
-
-### Список
-
-```powershell
+sysdiff snapshot create <name> --profile minimal|standard|full
+sysdiff snapshot create <name> --profile-file .\profile.json
 sysdiff snapshot list
-```
-
-### Информация
-
-```powershell
 sysdiff snapshot show <name-or-id>
-```
-
-### Удаление
-
-```powershell
-sysdiff snapshot delete <name-or-id>
 sysdiff snapshot delete <name-or-id> --yes
 ```
 
-## Сравнение
+### Переносимый `.sdshot`
+
+```powershell
+sysdiff snapshot export <name-or-id> --output .\snapshot.sdshot
+sysdiff snapshot import .\snapshot.sdshot
+```
+
+Экспорт содержит manifest, JSON снимка и SHA-256. Импорт отклоняет неизвестную схему, повреждённую checksum, небезопасный путь и превышение лимита размера.
+
+## 🔎 Сравнение
 
 ```powershell
 sysdiff compare <before> <after>
+sysdiff compare before after --noise Raw|Balanced|Strict
+sysdiff compare before after --severity Info|Low|Medium|High|Critical
+sysdiff compare before after --format console|json|html|markdown
+sysdiff compare pc-a pc-b --cross-machine
 ```
 
-| Параметр | Значения | Назначение |
-|---|---|---|
-| `--noise` | `Raw`, `Balanced`, `Strict` | фильтрация шума |
-| `--severity` | `Info`…`Critical` | минимальная важность |
-| `--format` | `console`, `json`, `html`, `markdown` | формат отчёта |
-| `--output` | путь | выходной файл |
+`--cross-machine` включает явный межмашинный режим. SysDiff предупреждает о разных Windows build/architecture и снижает confidence.
 
-Примеры:
+Уникальная пара удалённого и добавленного файла с одинаковыми SHA-256 и размером может стать `Moved` или `Renamed`. Неоднозначные пары не объединяются.
+
+## 👀 Watch
 
 ```powershell
-sysdiff compare before after --noise Raw
-sysdiff compare before after --severity High
-sysdiff compare before after --format html --output .\report.html
-sysdiff compare before after --format json --output .\report.json
-```
-
-## Наблюдение 👀
-
-```powershell
-sysdiff watch .\Setup.exe
 sysdiff watch .\Setup.exe --arguments "/S"
-sysdiff watch .\Setup.exe --working-directory C:\Installers
-sysdiff watch .\Setup.exe --wait-for-children
 sysdiff watch .\Setup.exe --wait-for-children --timeout 900
 sysdiff watch .\Setup.exe --stabilization-delay 10 --noise Strict
 sysdiff watch --no-launch
 ```
 
+Тайм-аут прекращает ожидание, но **не завершает** исследуемые процессы.
+
+## 🔴 Live process monitor
+
+```powershell
+sysdiff live process --duration 60
+sysdiff live process --duration 120 --root-pid 1234
+sysdiff live process --duration 60 --format markdown --output .\process-events.md
+```
+
+Параметры:
+
 | Параметр | Назначение |
 |---|---|
-| `--arguments` | аргументы запуска исследуемого файла |
-| `--working-directory` | рабочий каталог процесса |
-| `--profile` | профиль снимка |
-| `--wait-for-children` | ждать основной процесс и обнаруженное дерево потомков |
-| `--timeout <seconds>` | прекратить ожидание после указанного количества секунд и перейти к итоговому снимку |
-| `--stabilization-delay <seconds>` | пауза перед итоговым снимком |
-| `--noise` | режим фильтрации итогового сравнения |
-| `--report` | путь автономного HTML-отчёта |
-| `--no-launch` | ручной режим без запуска процесса |
+| `--duration` | длительность 1–86400 секунд |
+| `--root-pid` | показывать обнаруженное дерево указанного PID |
+| `--format` | `json`, `markdown` |
+| `--output` | путь результата |
 
-Поток:
+## 🌐 Live network monitor
 
-1. создаётся начальный снимок;
-2. запускается процесс или ожидается ручная установка;
-3. SysDiff ждёт основной процесс и, при `--wait-for-children`, его обнаруженных потомков;
-4. при достижении тайм-аута процессы не завершаются автоматически;
-5. выполняется пауза стабилизации;
-6. создаётся итоговый снимок;
-7. формируется HTML-отчёт.
+```powershell
+sysdiff live network --duration 60
+sysdiff live network --format json --output .\network-events.json
+```
 
-> Отслеживание дерева использует периодические снимки Toolhelp. Очень короткоживущий дочерний процесс, появившийся и завершившийся между опросами, может не попасть в список.
+Фиксируются изменения TCP connections и UDP listeners. Payload пакетов не читается.
 
-## Профили
+## 🧳 Investigation bundle
+
+```powershell
+sysdiff bundle create <comparison-id>
+sysdiff bundle create <comparison-id> --output .\investigation.zip
+```
+
+Bundle содержит:
+
+```text
+manifest.json
+checksums.sha256
+before.sdshot
+after.sdshot
+report.html
+report.json
+report.md
+```
+
+## 🎛️ Пользовательские профили
+
+```powershell
+sysdiff profile load .\profile.json
+sysdiff snapshot create custom --profile-file .\profile.json
+```
+
+Проверяются имя, список известных провайдеров, `maximumDepth` и `maximumArtifacts`.
+
+## 🧩 Provider SDK
+
+```powershell
+sysdiff snapshot create plugin-shot --profile-file .\plugin-profile.json `
+  --plugin .\Provider.dll
+```
+
+`--plugin` можно передать несколько раз. DLL загружается только явно, должна содержать `SysDiffProviderPluginAttribute`, совместимую версию SDK и публичный `ISnapshotProvider` с конструктором без параметров.
+
+## ⚙️ Профили и конфигурация
 
 ```powershell
 sysdiff profile list
 sysdiff profile show standard
-```
-
-- `minimal`: службы, задачи, автозагрузка, окружение, Firewall и установленные приложения;
-- `standard`: всё из minimal, файловая система, реестр, драйверы и сертификаты;
-- `full`: все провайдеры с расширенным файловым и реестровым сканированием.
-
-## Конфигурация и пути
-
-```powershell
 sysdiff config show
 sysdiff config path
 ```
@@ -125,9 +130,9 @@ sysdiff config path
 |---:|---|
 | 0 | успех |
 | 1 | общая ошибка |
-| 2 | некорректные аргументы |
+| 2 | некорректные аргументы или plugin/profile validation |
 | 3 | снимок не найден |
 | 5 | доступ запрещён |
-| 7 | частичный снимок или тайм-аут `watch` с сохранённым результатом |
+| 7 | частичный снимок |
 | 8 | отменено |
 | 9 | ошибка хранилища |

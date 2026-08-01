@@ -28,6 +28,11 @@ jobs:
       - name: Собрать
         run: dotnet build SysDiff.sln --configuration Release --no-restore
 
+      - name: Собрать пример Provider SDK
+        run: >
+          dotnet build samples/plugins/SysDiff.SampleProvider/SysDiff.SampleProvider.csproj
+          --configuration Release
+
       - name: Опубликовать win-x64
         run: >
           dotnet publish src/SysDiff.Cli/SysDiff.Cli.csproj

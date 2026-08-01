@@ -8,15 +8,18 @@ public sealed class SnapshotCoordinator
 {
     private readonly IReadOnlyDictionary<string, ISnapshotProvider> _providers;
     private readonly ISnapshotStore _store;
+    private readonly PrivacyRedactor _privacyRedactor;
     private readonly ILogger<SnapshotCoordinator> _logger;
 
     public SnapshotCoordinator(
         IEnumerable<ISnapshotProvider> providers,
         ISnapshotStore store,
+        PrivacyRedactor privacyRedactor,
         ILogger<SnapshotCoordinator> logger)
     {
         _providers = providers.ToDictionary(x => x.Id, StringComparer.OrdinalIgnoreCase);
         _store = store;
+        _privacyRedactor = privacyRedactor;
         _logger = logger;
     }
 
@@ -29,6 +32,9 @@ public sealed class SnapshotCoordinator
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        string machineFingerprint = MachineIdentity.CreateFingerprint();
+        string windowsBuild = Environment.OSVersion.Version.ToString();
+        string architecture = Environment.Is64BitOperatingSystem ? "x64" : "x86";
 
         var snapshot = new SnapshotRecord
         {
@@ -36,7 +42,9 @@ public sealed class SnapshotCoordinator
             ProfileName = profile.Name,
             Status = SnapshotStatus.InProgress,
             WindowsEdition = RuntimeInformation.OSDescription,
-            WindowsBuild = Environment.OSVersion.Version.ToString()
+            WindowsBuild = windowsBuild,
+            Architecture = architecture,
+            MachineFingerprint = machineFingerprint
         };
 
         await _store.SaveSnapshotAsync(snapshot, cancellationToken);
@@ -88,6 +96,7 @@ public sealed class SnapshotCoordinator
                             Progress = progress
                         },
                         cancellationToken);
+                    result = _privacyRedactor.RedactResult(result);
                 }
                 catch (OperationCanceledException)
                 {
@@ -103,7 +112,7 @@ public sealed class SnapshotCoordinator
                         Status = ProviderStatus.Failed,
                         StartedAtUtc = DateTimeOffset.UtcNow,
                         FinishedAtUtc = DateTimeOffset.UtcNow,
-                        Errors = [exception.Message],
+                        Errors = [_privacyRedactor.Redact(exception.Message)],
                         RequiresAdministrator = provider.RequiresAdministrator
                     };
                 }
@@ -111,6 +120,25 @@ public sealed class SnapshotCoordinator
                 results.Add(result);
                 artifacts.AddRange(result.Artifacts);
             }
+
+            artifacts.Add(new SystemArtifact
+            {
+                ProviderId = "sysdiff",
+                ArtifactType = "SnapshotMachineMetadata",
+                Identity = "sysdiff://snapshot/machine",
+                DisplayName = "Источник снимка",
+                Properties = new Dictionary<string, ArtifactValue>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["MachineFingerprint"] = ArtifactValue.From(machineFingerprint),
+                    ["WindowsBuild"] = ArtifactValue.From(windowsBuild),
+                    ["Architecture"] = ArtifactValue.From(architecture)
+                },
+                Tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    "Metadata",
+                    "PrivacySafe"
+                }
+            });
 
             SnapshotStatus finalStatus = results.Any(x => x.Status is ProviderStatus.Failed or ProviderStatus.Partial)
                 ? SnapshotStatus.Partial

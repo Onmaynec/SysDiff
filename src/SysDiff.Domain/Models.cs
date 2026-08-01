@@ -65,13 +65,15 @@ public sealed record ProviderSnapshotResult
 
 public sealed record SnapshotRecord
 {
+    private string? _machineFingerprint;
+
     public Guid Id { get; init; } = Guid.NewGuid();
 
     public required string Name { get; init; }
 
     public DateTimeOffset CreatedAtUtc { get; init; } = DateTimeOffset.UtcNow;
 
-    public string SysDiffVersion { get; init; } = "0.2.0";
+    public string SysDiffVersion { get; init; } = "0.3.0";
 
     public int SchemaVersion { get; init; } = 1;
 
@@ -84,6 +86,15 @@ public sealed record SnapshotRecord
     public string? WindowsBuild { get; init; }
 
     public string Architecture { get; init; } = Environment.Is64BitOperatingSystem ? "x64" : "x86";
+
+    public string? MachineFingerprint
+    {
+        get => _machineFingerprint
+            ?? Artifacts.FirstOrDefault(x =>
+                x.Identity.Equals("sysdiff://snapshot/machine", StringComparison.OrdinalIgnoreCase))?
+                .Properties.GetValueOrDefault("MachineFingerprint")?.Value;
+        init => _machineFingerprint = value;
+    }
 
     public string? Comment { get; init; }
 
@@ -147,7 +158,27 @@ public sealed record ComparisonResult
 
     public NoiseMode NoiseMode { get; init; } = NoiseMode.Balanced;
 
+    public bool CrossMachine { get; init; }
+
+    public List<string> Warnings { get; init; } = [];
+
     public List<SystemChange> Changes { get; init; } = [];
 
     public int HiddenAsNoise { get; init; }
+}
+
+public sealed record LiveEvent
+{
+    public required DateTimeOffset TimestampUtc { get; init; }
+
+    public required string Category { get; init; }
+
+    public required string EventType { get; init; }
+
+    public required string Identity { get; init; }
+
+    public string DisplayName { get; init; } = string.Empty;
+
+    public Dictionary<string, string?> Properties { get; init; } =
+        new(StringComparer.OrdinalIgnoreCase);
 }

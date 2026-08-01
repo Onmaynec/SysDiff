@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = "0.2.0",
+    [string]$Version = "0.3.0",
     [string]$Runtime = "win-x64"
 )
 
@@ -34,6 +34,7 @@ try {
     Copy-Item .\THIRD_PARTY_NOTICES.md $packageRoot
     Copy-Item .\README.md (Join-Path $packageRoot "README.txt")
     Copy-Item .\samples\profiles (Join-Path $packageRoot "profiles") -Recurse
+    New-Item (Join-Path $packageRoot "plugins") -ItemType Directory -Force | Out-Null
     New-Item (Join-Path $packageRoot "portable.mode") -ItemType File | Out-Null
 
     Compress-Archive -Path "$packageRoot\*" -DestinationPath $zipPath -CompressionLevel Optimal

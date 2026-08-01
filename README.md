@@ -4,7 +4,7 @@
 
 # SysDiff
 
-**Консольный инструмент для сравнения состояния Windows до и после установки или запуска программы.**
+**Консольный инструмент для снимков, сравнения и локального расследования изменений Windows.**
 
 [![Сборка](https://github.com/Onmaynec/SysDiff/actions/workflows/build.yml/badge.svg)](https://github.com/Onmaynec/SysDiff/actions/workflows/build.yml)
 [![Тесты](https://github.com/Onmaynec/SysDiff/actions/workflows/test.yml/badge.svg)](https://github.com/Onmaynec/SysDiff/actions/workflows/test.yml)
@@ -15,13 +15,13 @@
 </div>
 
 > [!IMPORTANT]
-> **SysDiff не является антивирусом.** Он показывает различия между двумя снимками системы и помогает исследовать поведение приложений, но не утверждает, что найденное изменение безопасно или вредоносно.
+> **SysDiff не является антивирусом.** Он фиксирует и объясняет системные изменения, но не объявляет объект безопасным или вредоносным.
 
 <img src="assets/screenshots/overview.svg" alt="Пример отчёта SysDiff">
 
-## 🔍 Что такое SysDiff
+## 🔍 Что делает SysDiff
 
-SysDiff фиксирует состояние выбранных областей Windows, сохраняет снимки в SQLite и сравнивает их по стабильным идентификаторам. Версия **0.2.0** покрывает файлы, реестр, службы, задачи планировщика, автозагрузку, переменные окружения, Windows Firewall, установленные приложения, системные драйверы и сертификаты.
+SysDiff создаёт снимки Windows до и после запуска программы, сравнивает их по стабильным идентификаторам и формирует Console, JSON, Markdown или автономный HTML-отчёт.
 
 ```powershell
 sysdiff snapshot create before --profile standard
@@ -29,48 +29,28 @@ sysdiff snapshot create before --profile standard
 # Установите или запустите исследуемую программу
 
 sysdiff snapshot create after --profile standard
-sysdiff compare before after
+sysdiff compare before after --format html --output .\report.html
 ```
 
-Автоматический сценарий с ожиданием дерева процессов:
+Версия **0.3.0** дополняет классические снимки инструментами расследования: live process/network monitor, переносимым `.sdshot`, investigation bundle, межмашинным сравнением, пользовательскими профилями и Provider SDK.
 
-```powershell
-sysdiff watch .\ExampleSetup.exe --arguments "/S" --wait-for-children --timeout 900
-```
+## ✨ Возможности 0.3.0
 
-## ✨ Возможности 0.2.0
-
-- 📸 именованные снимки Windows;
-- 🧩 независимые расширяемые провайдеры;
-- 🗃️ SQLite-хранилище снимков и сравнений;
-- 🔎 определение `Added`, `Removed` и `Modified`;
-- 🚦 объяснимые уровни важности от `Info` до `Critical`;
-- 🧹 фильтрация шума `Raw`, `Balanced` и `Strict`;
-- 🖥️ CLI и базовое интерактивное меню;
-- 👀 `watch` с ожиданием дочерних процессов, тайм-аутом и паузой стабилизации;
-- 🧱 снимки Firewall, установленных приложений, драйверов и сертификатов;
-- 📄 Console, JSON, Markdown и автономные HTML-отчёты;
-- 🔐 маскирование чувствительных значений реестра;
-- 📦 portable-режим и self-contained ZIP;
-- 🧪 unit-тесты, Windows-тесты и smoke-тест CLI;
-- ⚙️ GitHub Actions для сборки, тестов и релизов.
-
-### Реализованные провайдеры
-
-| Провайдер | Что собирается | Версия |
-|---|---|---|
-| `filesystem` | файлы, каталоги, размер, даты, атрибуты, SHA-256 | 0.1 |
-| `registry` | HKCU/HKLM/HKCR, Registry32/Registry64, маскирование секретов | 0.1 |
-| `services` | службы, состояние, путь, запуск, учётная запись, зависимости | 0.1 |
-| `scheduled-tasks` | задачи, действия, триггеры и привилегии | 0.1 |
-| `startup` | Run/RunOnce, Startup Folder, Winlogon | 0.1 |
-| `environment` | пользовательские и системные переменные, элементы PATH | 0.1 |
-| `firewall` | направление, действие, профили, порты, адреса, программа и служба | 0.2 |
-| `installed-apps` | uninstall-разделы HKCU/HKLM, области user/machine, x86/x64 | 0.2 |
-| `drivers` | системные драйверы, состояния, пути, SHA-256 и сведения о подписи | 0.2 |
-| `certificates` | хранилища Windows, сроки, назначения и доверие без экспорта ключей | 0.2 |
-
-Подробнее: [docs/PROVIDERS.md](docs/PROVIDERS.md).
+- 📸 снимки файлов, реестра, служб, задач, автозагрузки и окружения;
+- 🧱 Windows Firewall, установленные приложения, драйверы и сертификаты;
+- 🌐 адаптеры, DNS, шлюзы, proxy и маршруты;
+- 🔴 live-события запуска и завершения процессов;
+- 📡 live-события открытия и закрытия TCP/UDP endpoints;
+- ↔️ определение уникальных перемещений и переименований файлов;
+- 🖥️ явное межмашинное сравнение с предупреждениями и confidence;
+- 📦 экспорт и импорт снимков `.sdshot` с SHA-256;
+- 🧳 investigation bundle со снимками и отчётами;
+- 🎛️ пользовательские JSON-профили;
+- 🧩 Provider SDK и явная загрузка внешних плагинов;
+- 🕶️ автоматическое маскирование `%USERPROFILE%`;
+- 🧹 фильтрация шума `Raw`, `Balanced`, `Strict`;
+- 🗃️ SQLite, portable mode, self-contained `win-x64`;
+- ⚙️ GitHub Actions, unit-тесты и smoke-тесты.
 
 ## 🚀 Быстрый старт
 
@@ -79,156 +59,150 @@ sysdiff watch .\ExampleSetup.exe --arguments "/S" --wait-for-children --timeout 
 - Windows 10 x64 или Windows 11 x64;
 - для сборки — .NET 8 SDK;
 - Windows PowerShell 5.1 или PowerShell 7;
-- права администратора рекомендуются для полного доступа к системным данным.
-
-### Сборка из исходников
+- права администратора рекомендуются для полного системного снимка.
 
 ```powershell
 git clone https://github.com/Onmaynec/SysDiff.git
 cd SysDiff
 
 dotnet restore
-dotnet build
-dotnet test
-dotnet run --project src/SysDiff.Cli -- --help
+dotnet build --configuration Release
+dotnet test --configuration Release
 ```
 
-Или одной командой:
-
-```powershell
-.\scripts\build.ps1
-```
-
-### Portable-пакет
+Portable-пакет:
 
 ```powershell
 .\scripts\package.ps1
 ```
 
-Результат:
-
 ```text
-SysDiff-0.2.0-win-x64.zip
-SysDiff-0.2.0-win-x64.zip.sha256
+SysDiff-0.3.0-win-x64.zip
+SysDiff-0.3.0-win-x64.zip.sha256
 ```
 
-## 🧭 Основные команды
+## 🧭 Команды 0.3
+
+### Снимки и переносимый формат
 
 ```powershell
-# Диагностика
-sysdiff doctor
-
-# Снимки
 sysdiff snapshot create before
-sysdiff snapshot list
-sysdiff snapshot show before
-sysdiff snapshot delete before --yes
+sysdiff snapshot create custom --profile-file .\profile.json
+sysdiff snapshot export before --output .\before.sdshot
+sysdiff snapshot import .\before.sdshot
+```
 
-# Сравнение и отчёты
+`.sdshot` содержит `manifest.json`, `snapshot.json` и `checksums.sha256`. Импорт проверяет схему, размер, структуру архива и SHA-256.
+
+### Сравнение
+
+```powershell
 sysdiff compare before after
 sysdiff compare before after --noise Strict --severity Medium
-sysdiff compare before after --format html --output .\report.html
-sysdiff compare before after --format json --output .\report.json
-
-# Наблюдение
-sysdiff watch .\Setup.exe --arguments "/S" --wait-for-children
-sysdiff watch .\Setup.exe --wait-for-children --timeout 900
-sysdiff watch --no-launch --profile standard
-
-# Профили и пути
-sysdiff profile list
-sysdiff profile show standard
-sysdiff config path
+sysdiff compare pc-a pc-b --cross-machine --format html --output .\cross-machine.html
 ```
+
+При межмашинном сравнении SysDiff показывает различия Windows build и архитектуры, снижает confidence и требует явный флаг `--cross-machine`.
+
+### Live process monitor
+
+```powershell
+sysdiff live process --duration 60 --format json
+sysdiff live process --duration 120 --root-pid 1234 --format markdown
+```
+
+Режим фиксирует обнаруженные события `Started` и `Stopped`. Он не внедряется в процессы, не приостанавливает и не завершает их.
+
+### Live network monitor
+
+```powershell
+sysdiff live network --duration 60 --format json
+```
+
+Фиксируются изменения TCP-соединений и UDP listeners. Содержимое сетевого трафика не перехватывается.
+
+### Investigation bundle
+
+```powershell
+sysdiff bundle create <comparison-id> --output .\investigation.zip
+```
+
+Bundle включает два `.sdshot`, HTML/JSON/Markdown-отчёты, manifest и SHA-256. Сырые логи и приватные ключи не добавляются.
+
+### Пользовательские профили
+
+```powershell
+sysdiff profile load .\samples\profiles\installer-audit.json
+sysdiff snapshot create before --profile-file .\samples\profiles\installer-audit.json
+```
+
+Неизвестные провайдеры и небезопасные лимиты отклоняются до начала снимка.
+
+### Provider SDK
+
+```powershell
+dotnet build .\samples\plugins\SysDiff.SampleProvider\SysDiff.SampleProvider.csproj
+sysdiff snapshot create plugin-shot --profile-file .\plugin-profile.json `
+  --plugin .\SysDiff.SampleProvider.dll
+```
+
+Плагины **никогда не загружаются автоматически**. Пользователь обязан явно передать точный путь через `--plugin`.
 
 Полный справочник: [docs/COMMANDS.md](docs/COMMANDS.md).
 
-## 🎛️ Профили сканирования
+## 🧩 Провайдеры
 
-| Профиль | Назначение | Провайдеры и особенности |
-|---|---|---|
-| `minimal` | быстрая проверка | службы, задачи, автозагрузка, окружение, Firewall, приложения |
-| `standard` | анализ установщика | все провайдеры, выбранные каталоги и разделы реестра, Smart hashing |
-| `full` | глубокое исследование | все провайдеры, расширенные корни, Full hashing, большой объём данных |
+| ID | Данные | Версия |
+|---|---|---:|
+| `filesystem` | файлы, каталоги, метаданные, SHA-256 | 0.1 |
+| `registry` | HKCU/HKLM/HKCR, x86/x64, redaction | 0.1 |
+| `services` | службы, запуск, аккаунт, зависимости | 0.1 |
+| `scheduled-tasks` | задачи, действия и триггеры | 0.1 |
+| `startup` | Run/RunOnce, Startup Folder, Winlogon | 0.1 |
+| `environment` | переменные и элементы PATH | 0.1 |
+| `firewall` | правила, порты, адреса, программы | 0.2 |
+| `installed-apps` | приложения user/machine, x86/x64 | 0.2 |
+| `drivers` | пути, состояния, SHA-256, подписи | 0.2 |
+| `certificates` | хранилища, сроки и доверие | 0.2 |
+| `network-configuration` | adapters, DNS, gateways, proxy, routes | 0.3 |
 
-Пример собственного профиля: [`samples/profiles/installer-audit.json`](samples/profiles/installer-audit.json).
-
-## 👀 Улучшенный watch
-
-`watch` создаёт начальный снимок, запускает программу, ожидает её завершения и формирует итоговый HTML-отчёт.
-
-- `--wait-for-children` отслеживает обнаруженное дерево потомков через Windows Toolhelp API;
-- `--timeout <seconds>` прекращает ожидание и переходит к итоговому снимку;
-- процессы при тайм-ауте **не завершаются автоматически**;
-- `--stabilization-delay` даёт системе завершить фоновые операции;
-- `--noise` выбирает режим фильтрации итогового сравнения.
-
-## 📊 Отчёты
-
-Автономный HTML-отчёт содержит поиск, фильтрацию, сортировку, категории, уровни важности, старые и новые значения, тёмную и светлую тему, адаптивную вёрстку и режим печати. Системные строки экранируются от HTML-инъекций.
-
-Подробнее: [docs/REPORTS.md](docs/REPORTS.md).
+Подробнее: [docs/PROVIDERS.md](docs/PROVIDERS.md).
 
 ## 🔐 Безопасность и конфиденциальность
 
-- найденные пути, аргументы, команды удаления и действия задач считаются только данными;
-- PowerShell используется в изолированных read-only JSON-адаптерах;
-- приватные ключи сертификатов не читаются и не экспортируются;
-- большие файлы драйверов хешируются потоково;
-- значения реестра с именами `password`, `token`, `secret`, `credential`, `apikey` и `privatekey` заменяются на `<redacted>`;
-- ошибка одного провайдера не останавливает остальные источники.
+- системные пути, аргументы и команды рассматриваются только как данные;
+- значения реестра с признаками секрета заменяются на `<redacted>`;
+- пути `C:\Users\<имя>` автоматически заменяются на `%USERPROFILE%`;
+- machine fingerprint хранится как SHA-256, а не открытое имя компьютера;
+- приватные ключи сертификатов не извлекаются;
+- live network monitor не читает пакеты;
+- `.sdshot` проверяет ZIP Slip, размеры и checksums;
+- плагины являются исполняемым кодом и загружаются только явно;
+- ошибка одного провайдера приводит к `Partial`, но не уничтожает снимок.
 
-Перед публикацией отчёта проверьте пути, имена приложений и другие системные данные. Подробнее: [docs/PRIVACY.md](docs/PRIVACY.md) и [docs/SECURITY.md](docs/SECURITY.md).
+Подробнее: [docs/PRIVACY.md](docs/PRIVACY.md), [docs/SECURITY.md](docs/SECURITY.md).
 
 ## ⚠️ Ограничения
 
-- SysDiff сравнивает состояния и не перехватывает каждое событие в реальном времени.
-- Объекты, созданные и удалённые между снимками, могут не попасть в отчёт.
-- Защищённые области требуют прав администратора.
-- Очень короткоживущий дочерний процесс может завершиться между опросами Toolhelp.
-- Проверка подписи драйвера в 0.2.0 подтверждает наличие читаемого сертификата, но не заменяет полную проверку доверия Authenticode.
-- Проверка цепочки сертификата выполняется локально без сетевой загрузки промежуточных сертификатов.
-- Большие профили могут создавать сотни тысяч объектов и занимать значительное место.
-- Оценка важности не является вердиктом о вредоносности.
+- polling может пропустить очень короткоживущий процесс или endpoint;
+- live network monitor версии 0.3 не гарантирует сопоставление endpoint с PID;
+- move/rename определяется только при уникальном совпадении SHA-256 и размера;
+- неоднозначные совпадения остаются `Added`/`Removed`;
+- cross-machine confidence не заменяет ручной анализ;
+- плагины выполняются с правами процесса SysDiff;
+- оценка важности не является вердиктом о вредоносности.
 
-Подробнее: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
+## 📚 Документация
 
-## 🏗️ Архитектура
-
-```text
-CLI / интерактивное меню
-          │
-          ▼
-SnapshotCoordinator ── ComparisonEngine
-          │                 ├── SeverityEngine
-          │                 └── NoiseFilterEngine
-          ▼
-ISnapshotProvider[]
-  ├── FileSystem / Registry / Services / Tasks
-  ├── Startup / Environment / Installed Apps
-  └── Firewall / Drivers / Certificates
-          │
-          ▼
-      SQLite Store
-          │
-          ▼
-Console / JSON / Markdown / HTML
-```
-
-Подробности: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-## 🗺️ Roadmap
-
-- **0.1.0:** ядро снимков, сравнение, основные провайдеры и отчёты — готово;
-- **0.2.0:** Firewall, приложения, драйверы, сертификаты и улучшенный `watch` — готово;
-- **0.3.0:** live monitor, `.sdshot`, пользовательские профили, investigation bundle и SDK провайдеров;
-- **1.0.0:** стабильная схема, подписанные релизы и безопасные rollback handlers.
-
-Подробнее: [docs/ROADMAP.md](docs/ROADMAP.md).
-
-## 🤝 Участие в разработке
-
-Идеи, отчёты об ошибках и pull request приветствуются. Перед изменениями прочитайте [CONTRIBUTING.md](CONTRIBUTING.md) и не прикладывайте необработанные снимки с персональными данными.
+- [Команды](docs/COMMANDS.md)
+- [Архитектура](docs/ARCHITECTURE.md)
+- [Провайдеры](docs/PROVIDERS.md)
+- [Live Monitor](docs/LIVE_MONITOR.md)
+- [Переносимые форматы](docs/PORTABLE_FORMATS.md)
+- [Provider SDK](docs/PROVIDER_SDK.md)
+- [Конфиденциальность](docs/PRIVACY.md)
+- [Решение проблем](docs/TROUBLESHOOTING.md)
+- [Roadmap](docs/ROADMAP.md)
 
 ## 📜 Лицензия
 
