@@ -8,104 +8,117 @@
 sysdiff > output.txt
 ```
 
-Это ожидаемо. Используйте обычную CLI-команду или запустите `sysdiff` напрямую в CMD, PowerShell либо Windows Terminal.
-
-## Boot sequence или Action Console мерцает
-
-Отключите анимации:
-
-```powershell
-$env:SYSDIFF_NO_ANIMATIONS = "1"
-sysdiff
-```
-
-Также помогает:
-
-- Windows Terminal вместо legacy console;
-- окно шириной не менее 105 символов;
-- отсутствие внешнего wrapper, который перехватывает каждую перерисовку;
-- современный терминальный шрифт.
-
-Отключение движения не меняет результат операций.
-
-## Цвета плохо читаются или не поддерживаются
-
-```powershell
-$env:NO_COLOR = "1"
-sysdiff
-```
-
-Cyber Console сохранит рамки и текстовые маркеры:
-
-```text
-[OK] успешно
-[>>] выполняется
-[--] ожидает
-[!!] предупреждение
-[XX] ошибка
-[//] отменено
-```
-
-## Переменные отключения не сработали
-
-Поддерживаются значения `1`, `true`, `yes` и `on` без учёта регистра. Переменная должна быть установлена до запуска SysDiff.
-
-CMD:
-
-```cmd
-set SYSDIFF_NO_ANIMATIONS=1
-set NO_COLOR=1
-sysdiff
-```
-
-PowerShell:
-
-```powershell
-$env:SYSDIFF_NO_ANIMATIONS = "1"
-$env:NO_COLOR = "1"
-sysdiff
-```
+Используйте CLI-команду или запустите `sysdiff` напрямую в CMD, PowerShell либо Windows Terminal.
 
 ## Окно слишком узкое
 
-При ширине меньше 96 символов SysDiff включает compact layout. Для полной Cyber Console рекомендуется окно не меньше `105×30`.
+При ширине меньше 96 символов включается compact mode. Рекомендуется окно `110×30` или больше.
 
-Увеличьте окно или уменьшите размер шрифта терминала. Длинные пути автоматически сокращаются и не изменяются в сохранённых данных.
+## Символы рамок отображаются неправильно
 
-## Символы рамок или spinner отображаются неправильно
-
-Используйте Unicode-шрифт:
-
-- Cascadia Mono;
-- Cascadia Code;
-- Consolas.
-
-В legacy console включите UTF-8:
+Используйте Cascadia Mono, Cascadia Code или Consolas. В legacy console:
 
 ```cmd
 chcp 65001
 ```
 
-SysDiff устанавливает UTF-8 output encoding, но шрифт терминала должен содержать box-drawing и Braille glyphs. При проблемах отключите анимации — статус останется доступен через текстовые маркеры.
-
-## Курсор пропал после принудительного завершения
-
-Обычный выход, `Ctrl+C` и обработанные ошибки восстанавливают курсор автоматически. После жёсткого завершения процесса выполните:
+## Анимация мерцает
 
 ```powershell
-[Console]::CursorVisible = $true
-[Console]::ResetColor()
+$env:SYSDIFF_NO_ANIMATIONS = "1"
+sysdiff
 ```
 
-## Action Console кажется остановившейся
+Для отключения цветов:
 
-Проверьте строку `TRACE` и elapsed time. Некоторые Windows API или защищённые каталоги могут отвечать медленно. `Ctrl+C` отменяет операцию безопасным токеном отмены; найденные процессы и системные команды не завершаются и не выполняются автоматически.
+```powershell
+$env:NO_COLOR = "1"
+sysdiff
+```
 
-## `Access denied`
+## Baseline не настроена
 
-Запустите терминал от имени администратора или используйте более узкий профиль. SysDiff сохраняет partial snapshot и показывает недоступные providers как `[!!]` или `[XX]`.
+```powershell
+sysdiff snapshot list
+sysdiff baseline set <snapshot-name-or-id>
+sysdiff baseline show
+```
 
-## Снимок слишком большой
+Drift Scan не запускается без валидной baseline.
+
+## Baseline исчезла после удаления snapshot
+
+Baseline хранит ссылку на snapshot. Если snapshot удалён, `baseline show` вернёт, что baseline не настроена.
+
+Выберите новый snapshot:
+
+```powershell
+sysdiff baseline set trusted-clean
+```
+
+## Partial snapshot выбран как baseline
+
+Partial snapshot разрешён, но результат Drift Scan может быть неполным. Предпочтительно:
+
+1. запустить терминал от имени администратора;
+2. повторить snapshot;
+3. проверить provider warnings;
+4. закрепить новый Completed snapshot.
+
+## Drift Risk Score неожиданно высокий
+
+Проверьте:
+
+```powershell
+sysdiff timeline list --kind DriftScan
+sysdiff compare <baseline> <current> --noise Balanced
+```
+
+Score увеличивают Critical/High changes, высокий confidence и несколько затронутых providers. Это приоритет анализа, не malware verdict.
+
+## Drift Risk Score слишком низкий
+
+Возможные причины:
+
+- partial providers;
+- низкий confidence;
+- Strict noise filter;
+- changes помечены как noise;
+- baseline и current почти одинаковы.
+
+Откройте JSON summary и HTML comparison report.
+
+## Не удаётся активировать case
+
+Закрытый case нельзя сделать активным. Создайте новый:
+
+```powershell
+sysdiff case create "Follow-up"
+sysdiff case use "Follow-up"
+```
+
+## Закрытие case удалило бы snapshots?
+
+Нет. `case close` меняет только status case и active-case setting. Snapshots, comparisons и reports остаются на месте.
+
+## Timeline содержит старые snapshots
+
+Это ожидаемо. 0.6.0 реконструирует legacy snapshots/comparisons из существующих tables. Данные не дублируются и не переписываются.
+
+## Ошибка unique constraint при создании case
+
+Имена case уникальны без учёта регистра. Используйте другое имя или откройте существующий case:
+
+```powershell
+sysdiff case list
+sysdiff case show <name>
+```
+
+## Access denied
+
+Запустите терминал от имени администратора или используйте `minimal`. SysDiff сохраняет partial snapshot и отображает недоступные providers.
+
+## Snapshot слишком большой
 
 - используйте `minimal`;
 - уменьшите roots;
@@ -113,29 +126,23 @@ SysDiff устанавливает UTF-8 output encoding, но шрифт тер
 - используйте `Smart`, а не `Full` hashing;
 - снизьте `maximumDepth` и `maximumArtifacts`.
 
-## Watch Operations достиг timeout
+## Watch достиг timeout
 
-SysDiff не завершает исследуемые процессы. Он создаёт итоговый снимок и отчёт. Проверьте оставшиеся процессы и повторите с большим timeout.
+SysDiff не завершает исследуемые процессы. Он создаёт итоговый snapshot и report. Повторите с большим timeout.
 
-## Live Signal Monitor не видит короткое событие
+## Live Monitor не видит короткое событие
 
-Монитор использует периодические snapshots. Процесс или endpoint, появившийся и исчезнувший между опросами, может быть пропущен.
+Монитор использует polling. Событие, появившееся и исчезнувшее между интервалами, может быть пропущено.
 
 ## `.sdshot` не импортируется
 
-Импорт отклоняет:
-
-- повреждённые SHA-256;
-- неизвестную schema version;
-- path traversal;
-- слишком большой архив;
-- несоответствие manifest и snapshot.
-
-Повторно экспортируйте снимок из доверенной версии SysDiff.
+Импорт отклоняет повреждённые checksums, неизвестную schema, path traversal, слишком большой archive и несоответствие manifest.
 
 ## SQLite повреждена
 
 1. Закройте SysDiff.
-2. Создайте копию `sysdiff.db`, `sysdiff.db-wal`, `sysdiff.db-shm`.
+2. Скопируйте `sysdiff.db`, `sysdiff.db-wal`, `sysdiff.db-shm`.
 3. Не удаляйте исходники до анализа.
 4. Для чистого запуска временно переименуйте data directory.
+
+Новые 0.6 tables additive; удаление только investigation tables не рекомендуется без backup.
