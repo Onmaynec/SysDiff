@@ -23,7 +23,7 @@ internal sealed class V4CommandRouter
 
         if (args[0] is "--version" or "-v")
         {
-            Console.WriteLine("SysDiff 0.5.0");
+            Console.WriteLine("SysDiff 0.6.0");
             return 0;
         }
 
@@ -36,18 +36,18 @@ internal sealed class V4CommandRouter
         int result = await _v3.RunAsync(args, fallback, cancellationToken);
         if (args[0] is "--help" or "-h" or "help")
         {
-            PrintV5Help();
+            PrintV6Help();
         }
 
         return result;
     }
 
-    private static void PrintV5Help()
+    private static void PrintV6Help()
     {
         Console.WriteLine(
             """
 
-            SYSDIFF CYBER CONSOLE 0.5
+            SYSDIFF CYBER CONSOLE 0.6
               sysdiff                         открыть Cyber Control Node
               sysdiff --tui-smoke             вывести CI-preview панели и завершиться
 
@@ -55,9 +55,12 @@ internal sealed class V4CommandRouter
               1-9                             открыть модуль по номеру
               P / B / A                       Snapshot Node
               C                               Diff Lab
+              G                               Drift Operations
+              T                               Investigation Timeline
+              K                               Case Vault
               W                               Watch Operations
               L                               Live Signal Monitor
-              D                               Diagnostics
+              D                               System Node
 
             УПРАВЛЕНИЕ TUI
               ↑ / ↓                           навигация
