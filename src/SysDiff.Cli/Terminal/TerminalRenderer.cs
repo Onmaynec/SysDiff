@@ -353,9 +353,10 @@ internal sealed partial class TerminalRenderer
         Clear();
         int width = Math.Min(118, TerminalCapabilities.GetSafeWindowWidth());
         ConsoleColor stateColor = CyberTheme.StageColor(state);
+        string elapsedText = elapsed.ToString(@"mm\:ss\.ff", System.Globalization.CultureInfo.InvariantCulture);
         StartPanel($"ACTION CONSOLE // {title.ToUpperInvariant()}", width, stateColor);
         WriteLine(
-            $"{CyberTheme.NodeBadge(true)} [ ELAPSED:{elapsed:mm\\:ss\.ff} ] [ PID:{Environment.ProcessId} ]",
+            $"{CyberTheme.NodeBadge(true)} [ ELAPSED:{elapsedText} ] [ PID:{Environment.ProcessId} ]",
             width,
             CyberTheme.Muted);
         Separator(width, stateColor);
