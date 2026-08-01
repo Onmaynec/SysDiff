@@ -23,7 +23,7 @@ internal sealed class V4CommandRouter
 
         if (args[0] is "--version" or "-v")
         {
-            Console.WriteLine("SysDiff 0.4.0");
+            Console.WriteLine("SysDiff 0.5.0");
             return 0;
         }
 
@@ -36,32 +36,44 @@ internal sealed class V4CommandRouter
         int result = await _v3.RunAsync(args, fallback, cancellationToken);
         if (args[0] is "--help" or "-h" or "help")
         {
-            PrintV4Help();
+            PrintV5Help();
         }
 
         return result;
     }
 
-    private static void PrintV4Help()
+    private static void PrintV5Help()
     {
         Console.WriteLine(
             """
 
-            TERMINAL CONTROL CENTER 0.4
-              sysdiff                         открыть полноэкранную панель
+            SYSDIFF CYBER CONSOLE 0.5
+              sysdiff                         открыть Cyber Control Node
               sysdiff --tui-smoke             вывести CI-preview панели и завершиться
+
+            COMMAND DECK
+              1-9                             открыть модуль по номеру
+              P / B / A                       Snapshot Node
+              C                               Diff Lab
+              W                               Watch Operations
+              L                               Live Signal Monitor
+              D                               Diagnostics
 
             УПРАВЛЕНИЕ TUI
               ↑ / ↓                           навигация
-              Enter                           открыть выбранный пункт
+              Enter                           выполнить выбранное действие
               Esc                             назад
               /                               поиск в Change Explorer
               F                               severity filter
               S                               сортировка
               R                               raw changes
               E                               экспорт
-              F5                              обновить dashboard
+              F5                              обновить Control Node
               Q                               выход
+
+            БЕЗОПАСНЫЙ РЕЖИМ
+              SYSDIFF_NO_ANIMATIONS=1         отключить boot/action animations
+              NO_COLOR=1                      отключить цветовую палитру
 
             При перенаправленном stdin/stdout интерактивная панель не запускается.
             Обычные CLI-команды остаются доступными для PowerShell, CI и автоматизации.

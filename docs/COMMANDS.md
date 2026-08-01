@@ -1,12 +1,38 @@
-# ⌨️ Команды SysDiff 0.4.0
+# ⌨️ Команды SysDiff 0.5.0
 
-## Terminal Control Center
+## Cyber Console
 
 ```powershell
 sysdiff
 ```
 
-Без аргументов SysDiff открывает полноэкранную интерактивную панель. Управление: `↑`, `↓`, `Enter`, `Esc`, `Q`. Полный список горячих клавиш: [TERMINAL_UI.md](TERMINAL_UI.md).
+Без аргументов SysDiff открывает интерактивный Cyber Control Node. Полное описание: [TERMINAL_UI.md](TERMINAL_UI.md).
+
+### Command Deck
+
+| Клавиша | Назначение |
+|---|---|
+| `1`…`9` | открыть модуль по номеру |
+| `P`, `B`, `A` | Snapshot Node |
+| `C` | Diff Lab |
+| `W` | Watch Operations |
+| `L` | Live Signal Monitor |
+| `D` | Node Diagnostics |
+| `↑`, `↓` | перемещение |
+| `Enter` | выполнить действие |
+| `Esc` | назад |
+| `F5` | обновить dashboard |
+| `Q` | выйти |
+
+### Безопасный визуальный режим
+
+```powershell
+$env:SYSDIFF_NO_ANIMATIONS = "1"
+$env:NO_COLOR = "1"
+sysdiff
+```
+
+`SYSDIFF_NO_ANIMATIONS` отключает boot sequence и динамическую перерисовку. `NO_COLOR` отключает цвет, но сохраняет текстовые маркеры `[OK]`, `[!!]`, `[XX]`, `[>>]` и `[--]`.
 
 ## Общие команды
 
@@ -16,7 +42,7 @@ sysdiff --version
 sysdiff doctor
 ```
 
-`--tui-smoke` предназначен для CI и выводит статический preview панели без чтения клавиш:
+`--tui-smoke` предназначен для CI и выводит статический preview Cyber Console без чтения клавиш и задержек:
 
 ```powershell
 sysdiff --tui-smoke
@@ -54,6 +80,8 @@ sysdiff compare pc-a pc-b --cross-machine
 | `--format` | `console`, `json`, `html`, `markdown` | формат отчёта |
 | `--output` | путь | выходной файл |
 | `--cross-machine` | флаг | явное сравнение разных компьютеров |
+
+В интерактивном Change Explorer используются `/`, `F`, `S`, `R` и `E` для поиска, severity-фильтра, сортировки, raw mode и экспорта.
 
 ## Watch
 

@@ -11,15 +11,15 @@ internal sealed class TerminalControlCenter
 {
     private static readonly IReadOnlyList<TerminalMenuItem> MainMenu =
     [
-        new("snapshots", "Snapshot Center", "создание, просмотр и перенос снимков", "◆"),
-        new("compare", "Comparison Lab", "сравнение и исследование изменений", "◇"),
-        new("watch", "Watch Session", "контролируемый запуск программы", "▶"),
-        new("live", "Live Monitor", "процессы и сетевые endpoints", "●"),
-        new("reports", "Reports & Bundles", "готовые отчёты и архивы", "▤"),
-        new("doctor", "Diagnostics", "система, права, база и providers", "✓"),
-        new("settings", "Settings", "пути, режим хранения и hotkeys", "⚙"),
-        new("about", "About SysDiff", "версия, безопасность и назначение", "i"),
-        new("exit", "Exit", "закрыть Terminal Control Center", "×")
+        new("snapshots", "Snapshot Node", "создание, просмотр и перенос снимков", "◆"),
+        new("compare", "Diff Lab", "сравнение и исследование изменений", "◇"),
+        new("watch", "Watch Operations", "контролируемый запуск программы", "▶"),
+        new("live", "Live Signal", "процессы и сетевые endpoints", "●"),
+        new("reports", "Report Vault", "готовые отчёты и архивы", "▤"),
+        new("doctor", "Node Diagnostics", "система, права, база и providers", "✓"),
+        new("settings", "System Settings", "пути, режим хранения и hotkeys", "⚙"),
+        new("about", "About Node", "версия, безопасность и назначение", "i"),
+        new("exit", "Disconnect", "закрыть Cyber Control Node", "×")
     ];
 
     private readonly AppPaths _paths;
@@ -966,7 +966,7 @@ internal sealed class TerminalControlCenter
             "Terminal UI",
             TerminalCapabilities.IsInteractive ? "interactive console detected" : "redirected/non-interactive"));
         diagnostics.Add(new TerminalDiagnosticItem(
-            TerminalCapabilities.GetSafeWindowWidth() >= 92 ? TerminalDiagnosticState.Ok : TerminalDiagnosticState.Warning,
+            TerminalCapabilities.GetSafeWindowWidth() >= 96 ? TerminalDiagnosticState.Ok : TerminalDiagnosticState.Warning,
             "Window size",
             $"{TerminalCapabilities.GetSafeWindowWidth() + 1}×{TerminalCapabilities.GetSafeWindowHeight()}"));
         _renderer.RenderDiagnostics(diagnostics);
@@ -975,15 +975,15 @@ internal sealed class TerminalControlCenter
     private void RunSettings()
     {
         _renderer.ShowMessage(
-            "SETTINGS & HOTKEYS",
-            $"Режим хранения: {(_paths.Portable ? "portable" : "user profile")}{Environment.NewLine}Данные: {_paths.DataDirectory}{Environment.NewLine}SQLite: {_paths.DatabasePath}{Environment.NewLine}Отчёты: {_paths.ReportsDirectory}{Environment.NewLine}Логи: {_paths.LogsDirectory}{Environment.NewLine}{Environment.NewLine}Горячие клавиши:{Environment.NewLine}↑/↓ — навигация{Environment.NewLine}Enter — открыть{Environment.NewLine}Esc — назад{Environment.NewLine}/ — поиск изменений{Environment.NewLine}F — severity filter{Environment.NewLine}S — сортировка{Environment.NewLine}R — raw changes{Environment.NewLine}E — экспорт{Environment.NewLine}F5 — обновить dashboard{Environment.NewLine}Q — выход");
+            "SYSTEM SETTINGS // COMMAND DECK",
+            $"Режим хранения: {(_paths.Portable ? "portable" : "user profile")}{Environment.NewLine}Данные: {_paths.DataDirectory}{Environment.NewLine}SQLite: {_paths.DatabasePath}{Environment.NewLine}Отчёты: {_paths.ReportsDirectory}{Environment.NewLine}Логи: {_paths.LogsDirectory}{Environment.NewLine}{Environment.NewLine}Горячие клавиши:{Environment.NewLine}↑/↓ — навигация{Environment.NewLine}Enter — открыть{Environment.NewLine}Esc — назад{Environment.NewLine}/ — поиск изменений{Environment.NewLine}F — severity filter{Environment.NewLine}S — сортировка{Environment.NewLine}R — raw changes{Environment.NewLine}E — экспорт{Environment.NewLine}1–9 — открыть модуль напрямую{Environment.NewLine}P/B/A — Snapshot Node{Environment.NewLine}C — Diff Lab{Environment.NewLine}W — Watch Operations{Environment.NewLine}L — Live Signal{Environment.NewLine}D — Node Diagnostics{Environment.NewLine}F5 — обновить Control Node{Environment.NewLine}Q — выход");
     }
 
     private void RunAbout()
     {
         _renderer.ShowMessage(
-            "ABOUT SYSDIFF 0.4.0",
-            "SysDiff — локальная Windows-утилита для снимков, сравнения и расследования системных изменений. Terminal Control Center является основным интерактивным интерфейсом, а CLI-команды сохранены для автоматизации и CI.\n\nSysDiff не является антивирусом и не выносит вердикт о вредоносности. Live monitor ничего не завершает, не меняет сеть и не читает содержимое трафика.\n\nАвтор: Onmaynec\nЛицензия: MIT");
+            "ABOUT SYSDIFF 0.5.0",
+            "SysDiff — локальная Windows-утилита для снимков, сравнения и расследования системных изменений. Cyber Console является основным интерактивным интерфейсом, а CLI-команды сохранены для автоматизации и CI.\n\nSysDiff не является антивирусом и не выносит вердикт о вредоносности. Live monitor ничего не завершает, не меняет сеть и не читает содержимое трафика.\n\nАвтор: Onmaynec\nЛицензия: MIT");
     }
 
     private async Task<SnapshotRecord> CaptureWithProgressAsync(
@@ -1044,3 +1044,5 @@ internal sealed class TerminalControlCenter
         return principal.IsInRole(WindowsBuiltInRole.Administrator);
     }
 }
+
+
