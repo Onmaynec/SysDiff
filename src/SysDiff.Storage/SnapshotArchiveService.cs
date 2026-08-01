@@ -11,6 +11,7 @@ public sealed class SnapshotArchiveService
 {
     private const long MaximumArchiveBytes = 512L * 1024L * 1024L;
     private const long MaximumSnapshotBytes = 1024L * 1024L * 1024L;
+    private const int MaximumEntries = 32;
     private readonly ISnapshotStore _store;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -37,8 +38,8 @@ public sealed class SnapshotArchiveService
         byte[] snapshotBytes = JsonSerializer.SerializeToUtf8Bytes(snapshot, JsonOptions);
         string snapshotHash = Convert.ToHexString(SHA256.HashData(snapshotBytes)).ToLowerInvariant();
         var manifest = new SnapshotArchiveManifest(
-            Format: "SysDiff Snapshot",
-            FormatVersion: 1,
+            Format: SnapshotArchiveCompatibility.FormatName,
+            FormatVersion: SnapshotArchiveCompatibility.CurrentFormatVersion,
             SchemaVersion: snapshot.SchemaVersion,
             SysDiffVersion: snapshot.SysDiffVersion,
             SnapshotId: snapshot.Id,
@@ -81,11 +82,57 @@ public sealed class SnapshotArchiveService
         }
     }
 
+    public async Task<SnapshotArchiveInspection> InspectAsync(
+        string archivePath,
+        CancellationToken cancellationToken)
+    {
+        string fullPath = Path.GetFullPath(archivePath);
+        try
+        {
+            SnapshotArchivePackage package = await ReadPackageAsync(fullPath, cancellationToken);
+            return InspectPackage(fullPath, package);
+        }
+        catch (InvalidDataException exception)
+        {
+            return SnapshotArchiveCompatibility.Invalid(fullPath, exception.Message);
+        }
+    }
+
     public async Task<SnapshotRecord> ImportAsync(
         string archivePath,
         CancellationToken cancellationToken)
     {
         string fullPath = Path.GetFullPath(archivePath);
+        SnapshotArchivePackage package = await ReadPackageAsync(fullPath, cancellationToken);
+        SnapshotArchiveInspection inspection = InspectPackage(fullPath, package);
+        if (!inspection.CanImport)
+        {
+            throw new InvalidDataException(inspection.Message);
+        }
+
+        await _store.SaveSnapshotAsync(package.Snapshot, cancellationToken);
+        return package.Snapshot;
+    }
+
+    private static SnapshotArchiveInspection InspectPackage(
+        string fullPath,
+        SnapshotArchivePackage package) =>
+        SnapshotArchiveCompatibility.Evaluate(
+            fullPath,
+            package.Manifest.Format,
+            package.Manifest.FormatVersion,
+            package.Manifest.SchemaVersion,
+            package.Manifest.SysDiffVersion,
+            package.Manifest.SnapshotId,
+            package.Snapshot.Id,
+            package.Snapshot.SchemaVersion,
+            package.Snapshot.SysDiffVersion,
+            package.Manifest.CreatedAtUtc);
+
+    private static async Task<SnapshotArchivePackage> ReadPackageAsync(
+        string fullPath,
+        CancellationToken cancellationToken)
+    {
         var info = new FileInfo(fullPath);
         if (!info.Exists)
         {
@@ -106,12 +153,19 @@ public sealed class SnapshotArchiveService
             useAsync: true);
         using var archive = new ZipArchive(file, ZipArchiveMode.Read, leaveOpen: false);
 
+        if (archive.Entries.Count is 0 or > MaximumEntries)
+        {
+            throw new InvalidDataException("Архив содержит недопустимое количество записей.");
+        }
+
+        foreach (ZipArchiveEntry entry in archive.Entries)
+        {
+            ValidateSafeEntry(entry);
+        }
+
         ZipArchiveEntry manifestEntry = GetRequiredEntry(archive, "manifest.json");
         ZipArchiveEntry snapshotEntry = GetRequiredEntry(archive, "snapshot.json");
         ZipArchiveEntry checksumsEntry = GetRequiredEntry(archive, "checksums.sha256");
-        ValidateSafeEntry(manifestEntry);
-        ValidateSafeEntry(snapshotEntry);
-        ValidateSafeEntry(checksumsEntry);
 
         if (snapshotEntry.Length > MaximumSnapshotBytes)
         {
@@ -123,22 +177,27 @@ public sealed class SnapshotArchiveService
         byte[] checksumBytes = await ReadEntryAsync(checksumsEntry, 64 * 1024, cancellationToken);
         VerifyChecksums(manifestBytes, snapshotBytes, checksumBytes);
 
-        SnapshotArchiveManifest? manifest = JsonSerializer.Deserialize<SnapshotArchiveManifest>(
+        SnapshotArchiveManifest manifest = DeserializeRequired<SnapshotArchiveManifest>(
             manifestBytes,
-            JsonOptions);
-        if (manifest is null || manifest.FormatVersion != 1 || manifest.SchemaVersion > 1)
-        {
-            throw new InvalidDataException("Версия формата или схемы снимка не поддерживается.");
-        }
+            "manifest.json");
+        SnapshotRecord snapshot = DeserializeRequired<SnapshotRecord>(
+            snapshotBytes,
+            "snapshot.json");
 
-        SnapshotRecord? snapshot = JsonSerializer.Deserialize<SnapshotRecord>(snapshotBytes, JsonOptions);
-        if (snapshot is null || snapshot.Id != manifest.SnapshotId)
-        {
-            throw new InvalidDataException("Содержимое snapshot.json не соответствует manifest.json.");
-        }
+        return new SnapshotArchivePackage(manifest, snapshot);
+    }
 
-        await _store.SaveSnapshotAsync(snapshot, cancellationToken);
-        return snapshot;
+    private static T DeserializeRequired<T>(byte[] content, string entryName)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<T>(content, JsonOptions)
+                ?? throw new InvalidDataException($"{entryName} не содержит объект JSON.");
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidDataException($"{entryName} содержит некорректный JSON.", exception);
+        }
     }
 
     private static async Task WriteEntryAsync(
@@ -152,14 +211,25 @@ public sealed class SnapshotArchiveService
         await stream.WriteAsync(content, cancellationToken);
     }
 
-    private static ZipArchiveEntry GetRequiredEntry(ZipArchive archive, string name) =>
-        archive.GetEntry(name)
-        ?? throw new InvalidDataException($"В архиве отсутствует {name}.");
+    private static ZipArchiveEntry GetRequiredEntry(ZipArchive archive, string name)
+    {
+        ZipArchiveEntry[] entries = archive.Entries
+            .Where(entry => entry.FullName.Equals(name, StringComparison.Ordinal))
+            .ToArray();
+        return entries.Length switch
+        {
+            1 => entries[0],
+            0 => throw new InvalidDataException($"В архиве отсутствует {name}."),
+            _ => throw new InvalidDataException($"Архив содержит несколько записей {name}.")
+        };
+    }
 
     private static void ValidateSafeEntry(ZipArchiveEntry entry)
     {
-        if (!string.Equals(entry.FullName, entry.Name, StringComparison.Ordinal)
+        if (string.IsNullOrWhiteSpace(entry.FullName)
+            || !string.Equals(entry.FullName, entry.Name, StringComparison.Ordinal)
             || entry.FullName.Contains("..", StringComparison.Ordinal)
+            || entry.FullName.Contains(':', StringComparison.Ordinal)
             || Path.IsPathRooted(entry.FullName))
         {
             throw new InvalidDataException("Архив содержит небезопасный путь.");
@@ -203,8 +273,9 @@ public sealed class SnapshotArchiveService
         string checksums = Encoding.ASCII.GetString(checksumBytes);
         string manifestHash = Convert.ToHexString(SHA256.HashData(manifestBytes)).ToLowerInvariant();
         string snapshotHash = Convert.ToHexString(SHA256.HashData(snapshotBytes)).ToLowerInvariant();
-        if (!checksums.Contains($"{manifestHash}  manifest.json", StringComparison.OrdinalIgnoreCase)
-            || !checksums.Contains($"{snapshotHash}  snapshot.json", StringComparison.OrdinalIgnoreCase))
+        string[] lines = checksums.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (!lines.Contains($"{manifestHash}  manifest.json", StringComparer.OrdinalIgnoreCase)
+            || !lines.Contains($"{snapshotHash}  snapshot.json", StringComparer.OrdinalIgnoreCase))
         {
             throw new InvalidDataException("Контрольные суммы архива не совпадают.");
         }
@@ -217,4 +288,8 @@ public sealed class SnapshotArchiveService
         string SysDiffVersion,
         Guid SnapshotId,
         DateTimeOffset CreatedAtUtc);
+
+    private sealed record SnapshotArchivePackage(
+        SnapshotArchiveManifest Manifest,
+        SnapshotRecord Snapshot);
 }
