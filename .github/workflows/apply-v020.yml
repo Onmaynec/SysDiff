@@ -1,0 +1,57 @@
+name: Применить обновление 0.2.0
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-latest
+
+    steps:
+      - name: Получить ветку PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Установить .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Обновить CLI и документацию
+        shell: pwsh
+        run: |
+          if (Test-Path ./scripts/apply-v020.ps1) {
+            ./scripts/apply-v020.ps1
+            Remove-Item ./scripts/apply-v020.ps1
+          } else {
+            Write-Host "Сценарий уже применён."
+          }
+
+      - name: Восстановить зависимости
+        run: dotnet restore SysDiff.sln
+
+      - name: Собрать
+        run: dotnet build SysDiff.sln --configuration Release --no-restore
+
+      - name: Запустить тесты
+        run: dotnet test SysDiff.sln --configuration Release --no-build
+
+      - name: Зафиксировать результат
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src tests README.md README_RU.md scripts/package.ps1 scripts/apply-v020.ps1
+          if (-not (git diff --cached --quiet)) {
+            git commit -m "Завершить обновление SysDiff 0.2.0"
+            git push origin HEAD:${{ github.head_ref }}
+          } else {
+            Write-Host "Нет изменений для коммита."
+          }
