@@ -66,7 +66,7 @@ public sealed record ReleaseManifest
             throw new ReleaseManifestException(exception.Message, exception);
         }
 
-        if (version.IsPreRelease || !Channel.Equals("stable", StringComparison.OrdinalIgnoreCase))
+        if (version.IsPreRelease || !Channel.Equals(ProductInfo.Channel, StringComparison.OrdinalIgnoreCase))
         {
             throw new ReleaseManifestException("Stable updater принимает только stable-релизы.");
         }
@@ -133,7 +133,7 @@ public sealed record ReleaseManifest
     };
 }
 
-public sealed class ReleaseManifestException : InvalidDataException
+public sealed class ReleaseManifestException : IOException
 {
     public ReleaseManifestException(string message)
         : base(message)
