@@ -18,6 +18,8 @@ sysdiff
 
 Добавлены нумерованный Command Deck, neon green/cyan theme, boot sequence, Action Console, живой Provider Stream, progress/scanner-анимации и быстрые клавиши `1–9`, `P`, `C`, `W`, `L`, `D`.
 
+Основные модули теперь называются `Snapshot Node`, `Diff Lab`, `Watch Operations`, `Live Signal`, `Report Vault` и `Node Diagnostics`.
+
 Безопасный режим:
 
 ```powershell
