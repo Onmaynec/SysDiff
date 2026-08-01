@@ -8,6 +8,12 @@ public sealed record AppPaths(
     string LogsDirectory,
     bool Portable)
 {
+    public string UpdatesDirectory => Path.Combine(DataDirectory, "updates");
+
+    public string UpdateSettingsPath => Path.Combine(DataDirectory, "update-settings.json");
+
+    public string UpdateStatePath => Path.Combine(DataDirectory, "update-state.json");
+
     public static AppPaths Resolve()
     {
         string baseDirectory = AppContext.BaseDirectory;
@@ -30,6 +36,7 @@ public sealed record AppPaths(
         Directory.CreateDirectory(dataDirectory);
         Directory.CreateDirectory(reports);
         Directory.CreateDirectory(logs);
+        Directory.CreateDirectory(Path.Combine(dataDirectory, "updates"));
 
         return new AppPaths(
             baseDirectory,
