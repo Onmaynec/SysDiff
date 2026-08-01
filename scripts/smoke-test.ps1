@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Executable = ".\artifacts\publish\win-x64\sysdiff.exe",
-    [string]$ExpectedVersion = "0.4.0"
+    [string]$ExpectedVersion = "0.5.0"
 )
 
 $ErrorActionPreference = "Stop"
@@ -25,8 +25,8 @@ if (-not $fileVersion.StartsWith($ExpectedVersion, [System.StringComparison]::Or
 }
 
 $helpOutput = (& $Executable --help | Out-String)
-if ($LASTEXITCODE -ne 0 -or $helpOutput -notmatch "TERMINAL CONTROL CENTER 0.4") {
-    throw "Команда --help не содержит справку Terminal Control Center 0.4"
+if ($LASTEXITCODE -ne 0 -or $helpOutput -notmatch "SYSDIFF CYBER CONSOLE 0.5") {
+    throw "Команда --help не содержит справку Cyber Console 0.5"
 }
 
 $doctorOutput = (& $Executable doctor | Out-String)
@@ -34,9 +34,20 @@ if ($LASTEXITCODE -ne 0 -or $doctorOutput -notmatch "Диагностика SysD
     throw "Команда doctor не прошла smoke-проверку"
 }
 
-$tuiOutput = (& $Executable --tui-smoke | Out-String)
-if ($LASTEXITCODE -ne 0 -or $tuiOutput -notmatch "SYSDIFF CONTROL CENTER 0.4.0") {
-    throw "TUI smoke frame не сформирован"
+$env:SYSDIFF_NO_ANIMATIONS = "1"
+$env:NO_COLOR = "1"
+try {
+    $tuiOutput = (& $Executable --tui-smoke | Out-String)
+}
+finally {
+    Remove-Item Env:SYSDIFF_NO_ANIMATIONS -ErrorAction SilentlyContinue
+    Remove-Item Env:NO_COLOR -ErrorAction SilentlyContinue
+}
+if ($LASTEXITCODE -ne 0 -or $tuiOutput -notmatch "SYSDIFF CYBER CONSOLE 0.5.0") {
+    throw "Cyber Console smoke frame не сформирован"
+}
+if ($tuiOutput -notmatch "ACTION CONSOLE" -or $tuiOutput -notmatch "COMMAND DECK") {
+    throw "Smoke frame не содержит ключевые блоки Cyber Console"
 }
 
-Write-Host "✅ Smoke-тест SysDiff $ExpectedVersion и Terminal Control Center пройден." -ForegroundColor Green
+Write-Host "✅ Smoke-тест SysDiff $ExpectedVersion и Cyber Console пройден." -ForegroundColor Green
