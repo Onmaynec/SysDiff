@@ -13,6 +13,39 @@
 - оптимизация больших снимков;
 - полная локализация RU/EN.
 
+## [0.5.0] — 2026-08-01
+
+### Добавлено
+
+- `SYSDIFF CYBER CONSOLE` с новым ASCII-header и плотным Control Node;
+- нумерованный Command Deck `[01]`…`[09]`;
+- быстрые клавиши `1–9`, `P/B/A`, `C`, `W`, `L`, `D`;
+- boot sequence terminal/storage/providers/engines;
+- Action Console со стадиями `queued`, `running`, `completed`, `failed`, `cancelled`;
+- animated progress/scanner bars и elapsed time;
+- живой Provider Stream при создании снимка;
+- единая neon green/cyan/amber/red theme;
+- текстовые маркеры `[OK]`, `[>>]`, `[--]`, `[!!]`, `[XX]`, `[//]`;
+- `SYSDIFF_NO_ANIMATIONS=1` и `NO_COLOR=1`;
+- Cyber Console unit tests и расширенный `--tui-smoke`;
+- новое SVG-preview интерфейса.
+
+### Изменено
+
+- spinner длительных операций заменён общей Action Console;
+- dashboard стал визуально ближе к NexRoute и использует системные badges;
+- selection screens и Change Explorer переведены на единый cyber theme;
+- версия EXE, снимков и portable package обновлена до `0.5.0`;
+- документация панели полностью переписана.
+
+### Безопасность
+
+- анимации отключаются автоматически в CI и при redirected output;
+- boot sequence является только представлением и не запускает дополнительные команды;
+- status markers остаются читаемыми без цвета;
+- Ctrl+C продолжает корректно отменять операции;
+- captured paths, commands и arguments никогда не выполняются интерфейсом.
+
 ## [0.4.0] — 2026-08-01
 
 ### Добавлено
