@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+  <title id="title">SysDiff Cyber Console 0.5.0</title>
+  <desc id="desc">Тёмная терминальная панель SysDiff с неоновым зелёным интерфейсом, Command Deck и Action Console.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#020805"/>
+      <stop offset="1" stop-color="#07110e"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <pattern id="scan" width="8" height="8" patternUnits="userSpaceOnUse">
+      <path d="M0 7.5H8" stroke="#12ff7a" stroke-opacity="0.035"/>
+    </pattern>
+  </defs>
+  <rect width="1440" height="900" rx="28" fill="url(#bg)"/>
+  <rect width="1440" height="900" rx="28" fill="url(#scan)"/>
+  <rect x="34" y="34" width="1372" height="832" rx="18" fill="none" stroke="#18ef7d" stroke-width="3"/>
+  <rect x="52" y="52" width="1336" height="128" rx="12" fill="#03110b" stroke="#0a8f52"/>
+  <text x="720" y="98" text-anchor="middle" font-family="Consolas, monospace" font-size="45" font-weight="700" fill="#3dff9a" filter="url(#glow)">SYSDIFF CYBER CONSOLE</text>
+  <text x="720" y="138" text-anchor="middle" font-family="Consolas, monospace" font-size="20" fill="#29d9ff">WINDOWS INVESTIGATION CONTROL NODE // BUILD 0.5.0</text>
+  <text x="76" y="164" font-family="Consolas, monospace" font-size="17" fill="#7effbd">[ NODE:ONLINE ]  [ ROOT:ADMIN ]  [ PROVIDERS:11 ]  [ STORAGE:PROFILE ]</text>
+
+  <rect x="52" y="198" width="660" height="530" rx="12" fill="#020b07" stroke="#0d9d59"/>
+  <text x="78" y="238" font-family="Consolas, monospace" font-size="24" font-weight="700" fill="#3dff9a">COMMAND DECK // SELECT MODULE</text>
+  <g font-family="Consolas, monospace" font-size="20">
+    <rect x="72" y="262" width="620" height="48" rx="6" fill="#28f58a"/>
+    <text x="92" y="294" fill="#001b0d">▶ [01] ◆ SNAPSHOT NODE     // capture, browse, transfer     [ARMED]</text>
+    <text x="92" y="346" fill="#d5ffe7">  [02] ◇ DIFF LAB          // compare and investigate        [READY]</text>
+    <text x="92" y="398" fill="#d5ffe7">  [03] ▶ WATCH OPERATIONS  // controlled program session    [READY]</text>
+    <text x="92" y="450" fill="#d5ffe7">  [04] ● LIVE SIGNAL       // processes and network events   [READY]</text>
+    <text x="92" y="502" fill="#d5ffe7">  [05] ▤ REPORT VAULT      // reports and bundles            [READY]</text>
+    <text x="92" y="554" fill="#d5ffe7">  [06] ✓ NODE DIAGNOSTICS  // health, rights, SQLite         [READY]</text>
+    <text x="92" y="606" fill="#d5ffe7">  [07] ⚙ SYSTEM SETTINGS   // paths, motion, colors          [READY]</text>
+    <text x="92" y="658" fill="#d5ffe7">  [08] i ABOUT             // version and security           [READY]</text>
+    <text x="92" y="710" fill="#ffcf5a">  [09] × DISCONNECT        // close local control node       [READY]</text>
+  </g>
+
+  <rect x="732" y="198" width="656" height="530" rx="12" fill="#020b07" stroke="#1384a4"/>
+  <text x="758" y="238" font-family="Consolas, monospace" font-size="24" font-weight="700" fill="#29d9ff">ACTION CONSOLE // SNAPSHOT CAPTURE</text>
+  <g font-family="Consolas, monospace" font-size="20">
+    <text x="758" y="286" fill="#72ffb3">[OK] CONTROL CHANNEL</text>
+    <text x="758" y="334" fill="#29d9ff">[&gt;&gt;] PROVIDER FILESYSTEM</text>
+    <text x="758" y="382" fill="#5d806d">[--] SQLITE COMMIT</text>
+    <text x="758" y="442" fill="#3dff9a">CAPTURE ███████████████████▓▒░░░░░  68%</text>
+    <text x="758" y="490" fill="#29d9ff">SCAN    ···········▓████············</text>
+    <text x="758" y="548" fill="#d5ffe7">TRACE &gt; C:\Program Files\Example\app.dll</text>
+    <text x="758" y="592" fill="#d5ffe7">OBJECTS 7 532   ELAPSED 00:18.42   PID 8420</text>
+    <text x="758" y="650" fill="#ffcf5a">CTRL+C ABORT // ACCESS ERRORS ISOLATED PER PROVIDER</text>
+  </g>
+
+  <rect x="52" y="748" width="1336" height="92" rx="12" fill="#03110b" stroke="#0a8f52"/>
+  <text x="720" y="785" text-anchor="middle" font-family="Consolas, monospace" font-size="18" fill="#29d9ff">QUICK OPS &gt; 1-9 MODULES · P/B/A SNAPSHOT · C DIFF · W WATCH · L LIVE · D DIAG</text>
+  <text x="720" y="817" text-anchor="middle" font-family="Consolas, monospace" font-size="18" fill="#7f9d8b">NAV &gt; ↑↓ MOVE · ENTER EXECUTE · ESC BACK · F5 RESCAN · Q DISCONNECT</text>
+</svg>
