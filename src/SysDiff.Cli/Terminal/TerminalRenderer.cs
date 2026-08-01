@@ -642,7 +642,7 @@ internal sealed partial class TerminalRenderer
             {
                 _cursorVisible = Console.CursorVisible;
                 Console.CursorVisible = false;
-                Console.Title = "SysDiff 0.5.0 · Cyber Console";
+                Console.Title = "SysDiff 0.6.0 · Drift Operations";
                 Console.Clear();
             }
             catch (IOException)
@@ -700,4 +700,8 @@ internal sealed record TerminalDashboardState(
     bool IsAdministrator,
     bool PortableMode,
     string WindowsVersion,
-    string DataDirectory);
+    string DataDirectory,
+    string? BaselineName,
+    string? ActiveCaseName,
+    int? LastRiskScore);
+

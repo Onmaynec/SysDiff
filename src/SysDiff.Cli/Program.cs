@@ -53,6 +53,7 @@ internal static class Program
         services.AddSingleton<ISeverityEngine, SeverityEngine>();
         services.AddSingleton<INoiseFilterEngine, NoiseFilterEngine>();
         services.AddSingleton<ComparisonEngine>();
+        services.AddSingleton<DriftRiskEngine>();
         services.AddSingleton<ConsoleReportRenderer>();
         services.AddSingleton<JsonReportRenderer>();
         services.AddSingleton<MarkdownReportRenderer>();
@@ -60,6 +61,8 @@ internal static class Program
 
         services.AddSingleton<ISnapshotStore>(_ =>
             new SqliteSnapshotStore(paths.DatabasePath));
+        services.AddSingleton<IInvestigationStore>(_ =>
+            new SqliteInvestigationStore(paths.DatabasePath));
         services.AddSingleton<SnapshotArchiveService>();
 
         services.AddSingleton<ISnapshotProvider, FileSystemProvider>();
@@ -82,16 +85,20 @@ internal static class Program
         services.AddSingleton<ProcessLiveMonitor>();
         services.AddSingleton<NetworkLiveMonitor>();
         services.AddSingleton<InvestigationBundleService>();
+        services.AddSingleton<DriftOperationsService>();
         services.AddSingleton<TerminalRenderer>();
         services.AddSingleton<TerminalControlCenter>();
         services.AddSingleton<V3CommandRouter>();
         services.AddSingleton<V4CommandRouter>();
+        services.AddSingleton<V6CommandRouter>();
         services.AddSingleton<CommandApp>();
 
         await using ServiceProvider provider = services.BuildServiceProvider();
 
         ISnapshotStore store = provider.GetRequiredService<ISnapshotStore>();
         await store.InitializeAsync(CancellationToken.None);
+        IInvestigationStore investigationStore = provider.GetRequiredService<IInvestigationStore>();
+        await investigationStore.InitializeAsync(CancellationToken.None);
 
         using var cancellation = new CancellationTokenSource();
         Console.CancelKeyPress += (_, eventArgs) =>
@@ -103,7 +110,7 @@ internal static class Program
         try
         {
             CommandApp fallback = provider.GetRequiredService<CommandApp>();
-            return await provider.GetRequiredService<V4CommandRouter>()
+            return await provider.GetRequiredService<V6CommandRouter>()
                 .RunAsync(cleanArgs, fallback, cancellation.Token);
         }
         catch (OperationCanceledException)

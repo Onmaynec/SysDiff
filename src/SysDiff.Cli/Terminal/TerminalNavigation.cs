@@ -105,9 +105,12 @@ public sealed class TerminalMenuNavigator
             {
                 ConsoleKey.P or ConsoleKey.B or ConsoleKey.A => 0,
                 ConsoleKey.C => 1,
-                ConsoleKey.W => 2,
-                ConsoleKey.L => 3,
-                ConsoleKey.D => 5,
+                ConsoleKey.G => 2,
+                ConsoleKey.T => 3,
+                ConsoleKey.K => 4,
+                ConsoleKey.W => 5,
+                ConsoleKey.L => 6,
+                ConsoleKey.D => 8,
                 _ => index
             };
         }
@@ -179,3 +182,4 @@ internal sealed class InlineProgress<T> : IProgress<T>
 
     public void Report(T value) => _handler(value);
 }
+

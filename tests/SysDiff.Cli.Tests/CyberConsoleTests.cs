@@ -10,9 +10,12 @@ public sealed class CyberConsoleTests
     [InlineData(ConsoleKey.D9, 8)]
     [InlineData(ConsoleKey.P, 0)]
     [InlineData(ConsoleKey.C, 1)]
-    [InlineData(ConsoleKey.W, 2)]
-    [InlineData(ConsoleKey.L, 3)]
-    [InlineData(ConsoleKey.D, 5)]
+    [InlineData(ConsoleKey.G, 2)]
+    [InlineData(ConsoleKey.T, 3)]
+    [InlineData(ConsoleKey.K, 4)]
+    [InlineData(ConsoleKey.W, 5)]
+    [InlineData(ConsoleKey.L, 6)]
+    [InlineData(ConsoleKey.D, 8)]
     public void CommandDeck_ResolvesDashboardHotkeys(ConsoleKey key, int expected)
     {
         Assert.Equal(expected, TerminalMenuNavigator.ResolveDirectIndex(key, itemCount: 9));

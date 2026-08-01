@@ -4,7 +4,7 @@ Roadmap отражает направление проекта, а не обещ
 
 ## 0.1.0 — ядро MVP ✅
 
-- [x] снимки, SQLite и сравнение;
+- [x] snapshots, SQLite и comparison;
 - [x] базовые Windows providers;
 - [x] Console/JSON/Markdown/HTML;
 - [x] portable package, tests и GitHub Actions.
@@ -20,7 +20,7 @@ Roadmap отражает направление проекта, а не обещ
 - [x] live process/network monitor;
 - [x] network configuration provider;
 - [x] `.sdshot` и investigation bundle;
-- [x] пользовательские профили;
+- [x] custom profiles;
 - [x] cross-machine compare;
 - [x] move/rename detection;
 - [x] Provider SDK;
@@ -29,32 +29,41 @@ Roadmap отражает направление проекта, а не обещ
 ## 0.4.0 — Terminal Control Center ✅
 
 - [x] полноэкранный dashboard;
-- [x] навигация стрелками;
-- [x] Snapshot Center, Comparison Lab, Watch и Live Monitor;
-- [x] Reports, Diagnostics и compact layout;
-- [x] восстановление состояния консоли;
-- [x] TUI tests и smoke frame;
-- [x] сохранение non-interactive CLI.
+- [x] стрелочная навигация;
+- [x] Snapshot/Diff/Watch/Live modules;
+- [x] reports, diagnostics и TUI tests.
 
 ## 0.5.0 — Cyber Console ✅
 
-- [x] Cyber Control Node в стилистике NexRoute — #27;
-- [x] boot sequence и переходы экранов — #28;
-- [x] Action Console с этапами, elapsed time и progress bars — #29;
-- [x] единая neon theme и текстовые status markers — #30;
-- [x] Command Deck и быстрые клавиши `1–9`, `P/C/W/L/D` — #31;
-- [x] safe animation mode, `NO_COLOR` и terminal compatibility tests — #32;
-- [x] живой Provider Stream;
-- [x] новое SVG-preview и русская документация.
+- [x] Cyber Control Node;
+- [x] Command Deck `1–9`;
+- [x] boot sequence;
+- [x] Action Console;
+- [x] Provider Stream;
+- [x] neon theme;
+- [x] safe motion/color modes.
+
+## 0.6.0 — Drift Operations ✅
+
+- [x] Baseline Vault;
+- [x] Drift Scan;
+- [x] explainable risk score;
+- [x] Investigation Timeline;
+- [x] Case Vault;
+- [x] active case links;
+- [x] additive SQLite migration;
+- [x] legacy timeline reconstruction;
+- [x] CLI/TUI/storage/risk tests;
+- [x] русская документация и SVG-preview.
 
 ## 1.0.0 — стабильность
 
-- [ ] стабильная схема данных;
-- [ ] миграции между версиями;
-- [ ] подписанные релизы и attestations;
+- [ ] стабильная публичная schema;
+- [ ] полноценные migration paths;
+- [ ] signed releases и attestations;
 - [ ] безопасный rollback preview/handlers;
-- [ ] оптимизация снимков с миллионами объектов;
-- [ ] полная локализация RU/EN;
-- [ ] документированная обратная совместимость.
+- [ ] snapshots с миллионами objects;
+- [ ] полная RU/EN localization;
+- [ ] документированная backward compatibility.
 
 Актуальные задачи находятся в [GitHub Issues](https://github.com/Onmaynec/SysDiff/issues).

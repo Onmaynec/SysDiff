@@ -1,173 +1,157 @@
-# 🟢 SysDiff Cyber Console
+# 🟢 SysDiff Cyber Console 0.6.0
 
-SysDiff 0.5.0 запускает полноэкранный **Cyber Control Node**, когда команда вызвана без аргументов в обычном интерактивном терминале:
+SysDiff без аргументов открывает полноэкранный **Windows Drift Investigation Node**:
 
 ```powershell
 sysdiff
 ```
 
-CLI-команды с аргументами не открывают панель и сохраняют стабильный текстовый вывод для PowerShell, скриптов и CI.
+CLI-команды с аргументами сохраняют стабильный текстовый вывод для PowerShell, скриптов и CI.
 
-## Концепция
+## Dashboard
 
-Интерфейс построен по модели самостоятельной системной утилиты и визуально приближен к NexRoute:
-
-- крупный ASCII-логотип;
-- чёрный фон и neon green/cyan palette;
-- нумерованные модули `[01]`…`[09]`;
-- системные badges и телеметрия узла;
-- Command Deck для быстрого запуска;
-- отдельная Action Console для длительных операций;
-- живой Provider Stream во время снимка;
-- маркеры состояния, читаемые даже без цвета.
-
-## Главный экран
+Широкий режим показывает:
 
 ```text
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃                        SYSDIFF CYBER CONSOLE                        ┃
-┃              WINDOWS INVESTIGATION CONTROL NODE // 0.5.0           ┃
-┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃ [ NODE:ONLINE ] [ ROOT:ADMIN ] [ OS:10.0.26100 ] [ ARCH:X64 ]       ┃
-┃ [ SNAPSHOTS:4 ] [ REPORTS:7 ] [ PROVIDERS:11 ] [ STORAGE:PROFILE ]  ┃
-┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃ ▶ [01] ◆ SNAPSHOT NODE       // capture, browse and transfer        ┃
-┃   [02] ◇ DIFF LAB            // compare and investigate             ┃
-┃   [03] ▶ WATCH OPERATIONS    // controlled program session          ┃
-┃   [04] ● LIVE SIGNAL         // processes and network endpoints     ┃
-┃   [05] ▤ REPORT VAULT        // reports and investigation bundles   ┃
-┃   [06] ✓ NODE DIAGNOSTICS    // Windows, rights, SQLite, providers  ┃
-┃   [07] ⚙ SYSTEM SETTINGS     // paths, motion and colors            ┃
-┃   [08] i ABOUT               // version, purpose and security       ┃
-┃   [09] × DISCONNECT          // close the local control node        ┃
-┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃ QUICK OPS > 1-9 · P/B/A SNAPSHOT · C DIFF · W WATCH · L LIVE · D   ┃
-┃ NAV > ↑↓ MOVE · ENTER EXECUTE · ESC BACK · F5 RESCAN · Q EXIT      ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+SYSDIFF CYBER CONSOLE
+WINDOWS DRIFT INVESTIGATION NODE // BUILD 0.6.0
+
+[ NODE:ONLINE ] [ ROOT:ADMIN ] [ OS:10.0.26100 ] [ ARCH:X64 ]
+[ SNAPSHOTS:12 ] [ REPORTS:8 ] [ PROVIDERS:11 ] [ STORAGE:PROFILE ]
+DATA CHANNEL  > C:\Users\...\AppData\Local\SysDiff
+DRIFT CHANNEL > BASELINE:trusted-clean // CASE:Installer audit // RISK:027/100
 ```
 
-Если ширина окна меньше 96 символов, панель автоматически использует compact layout.
+При ширине меньше 96 символов включается compact mode.
+
+## Девять модулей
+
+| № | Модуль | Назначение |
+|---:|---|---|
+| 01 | Snapshot Node | snapshots и `.sdshot` |
+| 02 | Diff Lab | comparisons и Change Explorer |
+| 03 | Drift Operations | baseline, scan и risk summary |
+| 04 | Investigation Timeline | хронология событий |
+| 05 | Case Vault | cases, tags и links |
+| 06 | Watch Operations | before/after workflow |
+| 07 | Live Signal | process/network monitor |
+| 08 | Report Vault | reports и bundles |
+| 09 | System Node | diagnostics, settings, about, exit |
 
 ## Command Deck
 
 | Клавиша | Действие |
 |---|---|
-| `1`…`9` | открыть соответствующий модуль |
+| `1`…`9` | открыть модуль |
 | `P`, `B`, `A` | Snapshot Node |
 | `C` | Diff Lab |
+| `G` | Drift Operations |
+| `T` | Investigation Timeline |
+| `K` | Case Vault |
 | `W` | Watch Operations |
-| `L` | Live Signal Monitor |
-| `D` | Node Diagnostics |
-| `↑` / `↓` | перемещение по меню или списку |
-| `Home` / `End` | первый или последний элемент |
-| `Enter` | открыть или подтвердить |
+| `L` | Live Signal |
+| `D` | System Node |
+| `↑` / `↓` | навигация |
+| `Home` / `End` | первый/последний пункт |
+| `Enter` | выполнить |
 | `Esc` | назад |
-| `Q` | выход или закрытие текущего browser |
-| `F5` | повторно прочитать состояние dashboard |
+| `F5` | обновить dashboard |
+| `Q` | disconnect |
 
-В Change Explorer дополнительно используются `/`, `F`, `S`, `R` и `E`.
+Change Explorer дополнительно использует `/`, `F`, `S`, `R`, `E`.
 
-## Boot sequence
+## Drift Operations
 
-Короткая анимация выполняется только при интерактивном запуске:
+Экран всегда показывает активную baseline и active case.
 
-1. terminal channel;
-2. local storage;
-3. snapshot providers;
-4. comparison engine;
-5. live monitors;
-6. control node online.
+### Run Drift Scan
 
-Boot sequence является только визуальным представлением. Он не запускает дополнительные проверки, не изменяет систему и может быть пропущен любой клавишей.
+Пользователь выбирает:
 
-По умолчанию вся последовательность занимает меньше полутора секунд.
+1. profile;
+2. noise mode;
+3. подтверждение resource-heavy full profile.
 
-## Action Console
-
-Все операции, которые раньше показывали одиночный spinner, используют общую Action Console:
+Provider Stream показывает текущий provider, число объектов и active path. После comparison открывается risk panel:
 
 ```text
-[OK] CONTROL CHANNEL
-[>>] FORMING INVESTIGATION BUNDLE
-[--] COMMIT RESULT
-
-STREAM █████████████▓▒░░░░░░  64%
-SCAN   ·······▓████··········
-TRACE  > packing snapshots, comparison and reports
+RISK CHANNEL // 027/100 // ELEVATED
+[████████░░░░░░░░░░░░░░░░░░░░]
+Changes             18
+Severity High        1
+Severity Medium      4
 ```
 
-Панель показывает:
+### Baseline Vault
 
-- состояние этапов `queued/running/completed/failed/cancelled`;
+- show;
+- set/replace;
+- clear;
+- explicit warning для partial snapshot.
+
+### Investigation Timeline
+
+Фильтры:
+
+- All;
+- DriftScan;
+- Snapshot;
+- Comparison;
+- Case;
+- Note.
+
+Выбранный event показывает timestamp, status, severity, reference, case и metadata.
+
+### Case Vault
+
+- create;
+- browse;
+- make active;
+- close;
+- clear active case.
+
+Закрытие case не удаляет snapshots/reports.
+
+## System Node
+
+System Node группирует:
+
+- Node Diagnostics;
+- System Settings;
+- About Node;
+- Disconnect.
+
+Это сохраняет девять основных модулей и цифровой Command Deck.
+
+## Анимации
+
+- boot sequence;
+- Action Console;
+- Provider Stream;
+- progress/scanner bars;
 - elapsed time;
-- PID процесса SysDiff;
-- progress и scanner bars;
-- текущую операцию;
-- итоговый результат;
-- подсказку `Ctrl+C` для отмены.
+- status markers.
 
-Action Console применяется к импорту/экспорту `.sdshot`, формированию отчётов, investigation bundle, ожиданию процессов, stabilization delay, live monitor и другим длительным действиям.
-
-## Provider Stream
-
-При создании снимка отображаются:
-
-- активный provider;
-- число обработанных артефактов;
-- текущее сообщение provider;
-- путь или системный объект;
-- будущий этап SQLite commit.
-
-Обновление кадра ограничено по частоте, поэтому быстрый provider не создаёт тысячи строк в истории CMD.
-
-## Цвета и маркеры
-
-| Значение | Цвет | Текстовый маркер |
-|---|---|---|
-| успешно | neon green | `[OK]` |
-| выполняется | cyan | `[>>]` |
-| ожидает | dark gray | `[--]` |
-| предупреждение | amber | `[!!]` |
-| ошибка | red | `[XX]` |
-| отменено | amber | `[//]` |
-
-Маркеры сохраняют смысл при отключённых цветах.
-
-## Safe animation mode
-
-Полностью отключить движение:
+Отключение:
 
 ```powershell
 $env:SYSDIFF_NO_ANIMATIONS = "1"
-sysdiff
-```
-
-Отключить цвета:
-
-```powershell
 $env:NO_COLOR = "1"
 sysdiff
 ```
 
-Значения `1`, `true`, `yes` и `on` считаются включёнными.
+При redirected input/output анимации не запускаются.
 
-Анимации автоматически отключаются:
-
-- в CI;
-- при redirected stdout;
-- при неинтерактивном запуске;
-- когда `SYSDIFF_NO_ANIMATIONS` включён.
-
-## Состояние консоли
+## Состояние Console
 
 `ConsoleSession` сохраняет и восстанавливает:
 
-- цвет текста;
-- цвет фона;
-- видимость курсора;
-- заголовок и очищенный экран при завершении.
+- foreground/background;
+- cursor visibility;
+- console title;
+- screen state при штатном выходе.
 
-Восстановление выполняется через `IDisposable`, включая выход после исключения или отмены.
+Ошибки Cursor API обрабатываются без аварийного завершения.
 
 ## Совместимость
 
@@ -178,4 +162,4 @@ sysdiff
 - PowerShell 7;
 - Windows Terminal.
 
-Рекомендуемый размер окна — не менее `105×30`. На меньшем размере используется compact layout, а длинные пути безопасно сокращаются.
+Рекомендуемый размер — `110×30` или больше. Unicode-шрифты: Cascadia Mono, Cascadia Code, Consolas.

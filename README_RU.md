@@ -4,21 +4,34 @@
 
 # 🇷🇺 Русская документация SysDiff
 
-**Основной [`README.md`](README.md) полностью написан на русском и описывает актуальную версию 0.5.0.**
+**Основной [`README.md`](README.md) полностью написан на русском и описывает актуальную версию 0.6.0.**
 
 </div>
 
-## 🟢 Главное изменение 0.5.0
+## 🧭 Главное изменение 0.6.0
 
-SysDiff получил новый **Cyber Control Node**, визуально приближенный к NexRoute:
+SysDiff получил **Drift Operations**:
+
+- доверенную baseline;
+- быстрый Drift Scan;
+- explainable risk score `0–100`;
+- Investigation Timeline;
+- Case Vault;
+- автоматическую привязку snapshot/comparison/report к активному кейсу;
+- additive SQLite migration без изменения старых таблиц.
+
+```powershell
+sysdiff baseline set trusted-clean
+sysdiff drift scan --profile standard --noise Balanced
+sysdiff timeline list
+sysdiff case create "Installer audit" --tags installer,test
+```
+
+Интерактивный запуск:
 
 ```powershell
 sysdiff
 ```
-
-Добавлены нумерованный Command Deck, neon green/cyan theme, boot sequence, Action Console, живой Provider Stream, progress/scanner-анимации и быстрые клавиши `1–9`, `P`, `C`, `W`, `L`, `D`.
-
-Основные модули теперь называются `Snapshot Node`, `Diff Lab`, `Watch Operations`, `Live Signal`, `Report Vault` и `Node Diagnostics`.
 
 Безопасный режим:
 
@@ -28,11 +41,10 @@ $env:NO_COLOR = "1"
 sysdiff
 ```
 
-Обычные CLI-команды сохранены для скриптов и CI.
-
 ## 📚 Разделы
 
 - [Главная страница](README.md)
+- [Drift Operations](docs/DRIFT_OPERATIONS.md)
 - [Cyber Console](docs/TERMINAL_UI.md)
 - [Команды](docs/COMMANDS.md)
 - [Архитектура](docs/ARCHITECTURE.md)
@@ -46,4 +58,4 @@ sysdiff
 - [История изменений](CHANGELOG.md)
 
 > [!IMPORTANT]
-> SysDiff не является антивирусом и не выносит вердикт о вредоносности.
+> SysDiff не является антивирусом, а Drift Risk Score не является вероятностью заражения.
