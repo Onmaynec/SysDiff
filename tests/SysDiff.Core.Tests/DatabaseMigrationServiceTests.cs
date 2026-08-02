@@ -63,7 +63,7 @@ public sealed class DatabaseMigrationServiceTests
         }
         finally
         {
-            Directory.Delete(root, recursive: true);
+            DeleteTemporaryDirectory(root);
         }
     }
 
@@ -93,7 +93,7 @@ public sealed class DatabaseMigrationServiceTests
         }
         finally
         {
-            Directory.Delete(root, recursive: true);
+            DeleteTemporaryDirectory(root);
         }
     }
 
@@ -142,7 +142,7 @@ public sealed class DatabaseMigrationServiceTests
             Assert.True(File.Exists(result.BackupPath));
 
             await using var connection = new SqliteConnection(
-                $"Data Source={databasePath};Mode=ReadOnly");
+                $"Data Source={databasePath};Mode=ReadOnly;Pooling=False");
             await connection.OpenAsync();
             await using SqliteCommand probe = connection.CreateCommand();
             probe.CommandText = """
@@ -162,7 +162,7 @@ public sealed class DatabaseMigrationServiceTests
         }
         finally
         {
-            Directory.Delete(root, recursive: true);
+            DeleteTemporaryDirectory(root);
         }
     }
 
@@ -175,7 +175,8 @@ public sealed class DatabaseMigrationServiceTests
         try
         {
             await InitializeDatabaseAsync(databasePath);
-            await using (var connection = new SqliteConnection($"Data Source={databasePath}"))
+            await using (var connection = new SqliteConnection(
+                $"Data Source={databasePath};Pooling=False"))
             {
                 await connection.OpenAsync();
                 await using SqliteCommand command = connection.CreateCommand();
@@ -192,7 +193,7 @@ public sealed class DatabaseMigrationServiceTests
         }
         finally
         {
-            Directory.Delete(root, recursive: true);
+            DeleteTemporaryDirectory(root);
         }
     }
 
@@ -213,5 +214,11 @@ public sealed class DatabaseMigrationServiceTests
             Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(path);
         return path;
+    }
+
+    private static void DeleteTemporaryDirectory(string root)
+    {
+        SqliteConnection.ClearAllPools();
+        Directory.Delete(root, recursive: true);
     }
 }
