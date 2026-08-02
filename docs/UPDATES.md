@@ -1,6 +1,6 @@
 # 🔄 Обновления SysDiff
 
-SysDiff 0.8.0 использует официальный **stable release channel** GitHub. Проверка обновлений выполняется по `release-manifest.json`, опубликованному вместе с каждым GitHub Release.
+SysDiff 0.9.0 использует официальный **stable release channel** GitHub. Проверка обновлений выполняется по `release-manifest.json`, опубликованному вместе с каждым GitHub Release.
 
 ## Быстрый старт
 
@@ -144,7 +144,10 @@ Updater не удаляет и не заменяет:
 - reports;
 - logs;
 - пользовательские profiles;
-- update settings.
+- update settings;
+- migration backups.
+
+Обновление EXE и миграция базы являются разными операциями. После установки новой версии existing database не изменяется автоматически: сначала используйте `sysdiff migration plan`, затем при необходимости `migration apply --yes`.
 
 Очищается только локальный update cache при явной команде:
 
@@ -161,7 +164,7 @@ sysdiff update clear-cache
 - `release-manifest.json`;
 - GitHub artifact attestations для ZIP и manifest.
 
-Версия 0.8.0 пока публикуется без Authenticode-сертификата. Это указано явно:
+Версия 0.9.0 пока публикуется без Authenticode-сертификата. Это указано явно:
 
 ```json
 {
@@ -180,6 +183,7 @@ sysdiff update clear-cache
 3. проверьте SHA-256;
 4. закройте SysDiff;
 5. распакуйте архив в новый каталог;
-6. перенесите только пользовательские данные, если они находились рядом с portable EXE.
+6. перенесите только пользовательские данные, если они находились рядом с portable EXE;
+7. запустите `sysdiff migration status` перед применением database migrations.
 
 Не заменяйте работающий EXE напрямую.

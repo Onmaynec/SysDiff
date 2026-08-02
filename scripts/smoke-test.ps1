@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Executable = ".\artifacts\publish\win-x64\sysdiff.exe",
-    [string]$ExpectedVersion = "0.8.0"
+    [string]$ExpectedVersion = "0.9.0"
 )
 
 $ErrorActionPreference = "Stop"
@@ -24,18 +24,35 @@ if (-not $fileVersion.StartsWith($ExpectedVersion, [System.StringComparison]::Or
 }
 
 $helpOutput = (& $Executable --help | Out-String)
-if ($LASTEXITCODE -ne 0 -or $helpOutput -notmatch "COMPATIBILITY CENTER 0.8") {
-    throw "Команда --help не содержит Compatibility Center 0.8"
+if ($LASTEXITCODE -ne 0 -or $helpOutput -notmatch "MIGRATION LAB 0.9") {
+    throw "Команда --help не содержит Migration Lab 0.9"
 }
-if ($helpOutput -notmatch "compatibility inspect" -or
+if ($helpOutput -notmatch "migration apply --yes" -or
+    $helpOutput -notmatch "compatibility inspect" -or
     $helpOutput -notmatch "update install --yes" -or
     $helpOutput -notmatch "DRIFT OPERATIONS 0.6") {
-    throw "Команда --help не содержит compatibility, updater и Drift Operations"
+    throw "Команда --help не содержит migration, compatibility, updater и Drift Operations"
+}
+
+$migrationStatus = (& $Executable migration status --json | Out-String)
+if ($LASTEXITCODE -ne 0 -or
+    $migrationStatus -notmatch '"status": "Current"' -or
+    $migrationStatus -notmatch '"userVersion": 9' -or
+    $migrationStatus -notmatch '"supportedUserVersion": 9' -or
+    $migrationStatus -notmatch '"pendingMigrations": \[\]') {
+    throw "Команда migration status --json не прошла smoke-проверку"
+}
+
+$migrationHistory = (& $Executable migration history --json | Out-String)
+if ($LASTEXITCODE -ne 0 -or
+    $migrationHistory -notmatch '"id": "0.9.0-migration-lab"' -or
+    $migrationHistory -notmatch '"status": "Applied"') {
+    throw "Команда migration history --json не прошла smoke-проверку"
 }
 
 $compatibilityStatus = (& $Executable compatibility status --json | Out-String)
 if ($LASTEXITCODE -ne 0 -or
-    $compatibilityStatus -notmatch '"productVersion": "0.8.0"' -or
+    $compatibilityStatus -notmatch '"productVersion": "0.9.0"' -or
     $compatibilityStatus -notmatch '"currentFormatVersion": 1' -or
     $compatibilityStatus -notmatch '"currentSchemaVersion": 1') {
     throw "Команда compatibility status --json не прошла smoke-проверку"
@@ -58,7 +75,7 @@ if ($LASTEXITCODE -ne 0 -or $caseOutput -notmatch "Кейсов пока нет"
 
 $updateStatus = (& $Executable update status --json | Out-String)
 if ($LASTEXITCODE -ne 0 -or
-    $updateStatus -notmatch '"currentVersion": "0.8.0"' -or
+    $updateStatus -notmatch '"currentVersion": "0.9.0"' -or
     $updateStatus -notmatch '"status":') {
     throw "Команда update status --json не прошла smoke-проверку"
 }
@@ -80,14 +97,14 @@ finally {
     Remove-Item Env:SYSDIFF_NO_ANIMATIONS -ErrorAction SilentlyContinue
     Remove-Item Env:NO_COLOR -ErrorAction SilentlyContinue
 }
-if ($LASTEXITCODE -ne 0 -or $tuiOutput -notmatch "SYSDIFF CYBER CONSOLE 0.8.0") {
+if ($LASTEXITCODE -ne 0 -or $tuiOutput -notmatch "SYSDIFF CYBER CONSOLE 0.9.0") {
     throw "Cyber Console smoke frame не сформирован"
 }
-if ($tuiOutput -notmatch "COMPATIBILITY CENTER" -or
-    $tuiOutput -notmatch "SDSHOT: VERIFIED" -or
-    $tuiOutput -notmatch "NEWER FORMAT: REJECT" -or
-    $tuiOutput -notmatch "IMPORT: ATOMIC") {
-    throw "Smoke frame не содержит ключевые блоки Compatibility Center"
+if ($tuiOutput -notmatch "MIGRATION LAB" -or
+    $tuiOutput -notmatch "DRY-RUN: DEFAULT" -or
+    $tuiOutput -notmatch "APPLY: CONFIRM" -or
+    $tuiOutput -notmatch "ROLLBACK: ATOMIC") {
+    throw "Smoke frame не содержит ключевые блоки Migration Lab"
 }
 
-Write-Host "✅ Smoke-тест SysDiff $ExpectedVersion и Compatibility Center пройден." -ForegroundColor Green
+Write-Host "✅ Smoke-тест SysDiff $ExpectedVersion и Migration Lab пройден." -ForegroundColor Green

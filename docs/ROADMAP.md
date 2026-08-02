@@ -74,19 +74,32 @@ Roadmap отражает направление проекта, а не обещ
 - [x] manifest/snapshot invariant checks;
 - [x] compatibility policy и recovery guide.
 
-## 0.9.x — подготовка стабильной схемы
+## 0.9.0 — Migration Lab ✅
+
+- [x] database migration status и dry-run plan;
+- [x] SQLite-consistent backup;
+- [x] transaction rollback;
+- [x] migration history и run audit;
+- [x] exclusive migration lock;
+- [x] `PRAGMA user_version` guard;
+- [x] unknown/future database rejection;
+- [x] additive metadata migration;
+- [x] integration tests backup/idempotency/rollback;
+- [x] recovery guide и JSON automation contract.
+
+## Путь к 1.0
 
 - [ ] JSON Schema для snapshot, comparison и bundle;
-- [ ] golden fixtures версий 0.3–0.8;
-- [ ] migration dry-run и backup workflow;
-- [ ] документированная reader/writer matrix;
+- [ ] golden fixtures версий 0.3–0.9;
+- [ ] реальные handlers для breaking portable formats;
+- [ ] полная reader/writer compatibility matrix;
 - [ ] deprecation policy;
-- [ ] fixtures для unsupported/newer formats.
+- [ ] tested upgrade chain до stable schema 1.0.
 
 ## 1.0.0 — стабильность
 
 - [ ] стабильная публичная schema;
-- [ ] полноценные migration paths;
+- [ ] полный migration path из поддерживаемых 0.x;
 - [ ] Authenticode signed releases;
 - [ ] безопасный rollback preview/handlers;
 - [ ] snapshots с миллионами objects;

@@ -1,4 +1,4 @@
-# ⌨️ Команды SysDiff 0.8.0
+# ⌨️ Команды SysDiff 0.9.0
 
 ## Cyber Console
 
@@ -6,7 +6,7 @@
 sysdiff
 ```
 
-Без аргументов SysDiff открывает Cyber Control Node. В `[09] System Node` доступен **Update Center**. Подробности: [TERMINAL_UI.md](TERMINAL_UI.md) и [UPDATES.md](UPDATES.md).
+Без аргументов SysDiff открывает Cyber Control Node. В `[09] System Node` доступен **Update Center**. Подробности: [TERMINAL_UI.md](TERMINAL_UI.md), [UPDATES.md](UPDATES.md) и [MIGRATIONS.md](MIGRATIONS.md).
 
 ### Command Deck
 
@@ -31,6 +31,51 @@ sysdiff --help
 sysdiff --version
 sysdiff doctor
 sysdiff --tui-smoke
+```
+
+## Migration Lab
+
+### Состояние и dry-run plan
+
+```powershell
+sysdiff migration status
+sysdiff migration status --json
+sysdiff migration plan
+sysdiff migration plan --json
+```
+
+`status` показывает краткое состояние SQLite, `PRAGMA user_version`, integrity и количество ожидающих migrations. `plan` дополнительно выводит каждый шаг, требование backup и destructive-флаг. Обе команды read-only.
+
+Статусы базы:
+
+- `Current` — всё актуально;
+- `MigrationRequired` — есть известный путь обновления;
+- `RequiresNewerSysDiff` — база создана более новой или неизвестной версией;
+- `Invalid` — integrity/ledger не согласованы.
+
+### История
+
+```powershell
+sysdiff migration history
+sysdiff migration history --json
+```
+
+Показывает `app_migrations` и до 200 последних записей `migration_runs` с backup path и ошибкой.
+
+### Применение
+
+```powershell
+sysdiff migration apply --yes
+sysdiff migration apply --yes --json
+```
+
+Без `--yes` команда отклоняется. Перед SQL существующей базы создаётся SQLite-consistent backup, затем каждый шаг выполняется транзакционно. Ошибка migration возвращает exit code `9`.
+
+Короткий alias:
+
+```powershell
+sysdiff migrate plan
+sysdiff migrate apply --yes
 ```
 
 ## Compatibility Center
@@ -255,4 +300,4 @@ sysdiff config path
 | 5 | доступ запрещён |
 | 7 | частичный snapshot или безопасный timeout |
 | 8 | отменено |
-| 9 | ошибка хранилища |
+| 9 | ошибка хранилища, future DB или неуспешная migration |
