@@ -1,8 +1,8 @@
-# 🏗️ Архитектура SysDiff 0.10.0
+# 🏗️ Архитектура SysDiff 0.11.0
 
 ## Цель
 
-SysDiff разделяет capture Windows-данных, comparison, investigations, storage, reporting, compatibility, migrations и public schema validation. TUI и CLI используют одинаковые services.
+SysDiff разделяет capture Windows-данных, comparison, investigations, storage, reporting, portable upgrades, compatibility, migrations и public schema validation. TUI и CLI используют одинаковые services.
 
 ## Слои
 
@@ -11,23 +11,23 @@ Cyber Control Node                         Non-interactive CLI
         │                                           │
         └────────────────────┬──────────────────────┘
                              ▼
-          V10 → V9 → V8 → V7 → V6 → V4 → V3
+      V11 → V10 → V9 → V8 → V7 → V6 → V4 → V3
                              │
-       ┌─────────────────────┼───────────────────────────────┐
-       ▼                     ▼                               ▼
-Snapshot workflows      Drift Operations                Data Contracts
-       │                     │                               │
-       ▼                     ├─ ComparisonEngine             ├─ SchemaContractService
-SnapshotCoordinator         ├─ DriftRiskEngine              ├─ SnapshotArchiveService
-       │                     ├─ Reporting                    ├─ Compatibility Center
-       ▼                     └─ Timeline / Cases             └─ DatabaseMigrationService
-ISnapshotProvider[]                  │
-       └─────────────────────────────┴──────────────┐
-                                                   ▼
-                                  ISnapshotStore / IInvestigationStore
-                                                   │
-                                                   ▼
-                                              SQLite sysdiff.db
+       ┌─────────────────────┼──────────────────────────────────┐
+       ▼                     ▼                                  ▼
+Snapshot workflows      Drift Operations                   Data Safety
+       │                     │                                  │
+       ▼                     ├─ ComparisonEngine                ├─ PortableUpgradeService
+SnapshotCoordinator         ├─ DriftRiskEngine                 ├─ SchemaContractService
+       │                     ├─ Reporting                       ├─ SnapshotArchiveService
+       ▼                     └─ Timeline / Cases                ├─ Compatibility Center
+ISnapshotProvider[]                                             └─ DatabaseMigrationService
+       └──────────────────────────────┬──────────────────────────────┘
+                                      ▼
+                     ISnapshotStore / IInvestigationStore
+                                      │
+                                      ▼
+                                 SQLite sysdiff.db
 ```
 
 ## Проекты
@@ -36,7 +36,7 @@ ISnapshotProvider[]                  │
 |---|---|
 | `SysDiff.Domain` | records, enums, общий product/schema version contract |
 | `SysDiff.Core` | capture coordination, comparison, profiles, risk, privacy |
-| `SysDiff.Storage` | SQLite, migrations, `.sdshot`, schema catalog и validation |
+| `SysDiff.Storage` | SQLite, migrations, `.sdshot`, schema catalog, validation и portable upgrades |
 | `SysDiff.Providers` | read-only Windows providers |
 | `SysDiff.Reporting` | Console, JSON, Markdown и HTML writers |
 | `SysDiff.ProviderSdk` | контракт внешних providers |
@@ -45,22 +45,94 @@ ISnapshotProvider[]                  │
 ## Versioned routers
 
 ```text
-V10CommandRouter
-  ├── schema list|matrix|show|validate|verify
-  └── V9CommandRouter
-        ├── migration status|plan|history|apply
-        └── V8CommandRouter
-              ├── compatibility status|matrix|inspect|verify
-              └── V7 → V6 → V4 → V3 → CommandApp
+V11CommandRouter
+  ├── legacy matrix|status|plan|verify|convert
+  └── V10CommandRouter
+        ├── schema list|matrix|show|validate|verify
+        └── V9CommandRouter
+              ├── migration status|plan|history|apply
+              └── V8CommandRouter
+                    ├── compatibility status|matrix|inspect|verify
+                    └── V7 → V6 → V4 → V3 → CommandApp
 ```
 
 Каждый router перехватывает только команды своей версии и делегирует остальные вниз.
 
+## PortableUpgradeService
+
+Service находится в `SysDiff.Storage` и зависит только от `SchemaContractService`.
+
+### Plan pipeline
+
+```text
+explicit kind + input path
+       ↓
+size/parser or ZIP guards
+       ↓
+source shape detection
+       ├─ current v1     → Current
+       ├─ supported 0.x  → UpgradeAvailable + ordered steps
+       ├─ future schema  → RequiresNewerSysDiff
+       ├─ unknown old    → UnsupportedLegacy
+       └─ damaged        → Invalid
+```
+
+Plan не создаёт backup и не пишет output.
+
+### Conversion pipeline
+
+```text
+read-only plan
+      ↓
+source SHA-256
+      ↓
+automatic side-by-side backup
+      ↓
+in-memory transform
+      ↓
+Schema Contract validation
+      ↓
+temporary file / ZIP
+      ↓
+atomic move
+      ↓
+full PlanAsync(output)
+      ├─ Current → output SHA-256 + success
+      └─ failure → output delete or in-place restore
+```
+
+### Comparison handler
+
+Legacy report 0.3–0.9 содержит `schemaVersion`, `generatedAtUtc`, `before`, `after`, `comparison`, но не contract metadata. Handler добавляет:
+
+```text
+format = SysDiff Comparison Report
+formatVersion = 1
+schemaVersion = 1
+sysDiffVersion = 0.0.0-legacy
+legacyMigration = provenance object
+```
+
+Original nested JSON и unknown additive fields клонируются без semantic rewrite.
+
+### Bundle handler
+
+`ReadBundleAsync` проверяет:
+
+- archive/entry size limits;
+- count и duplicate entry names;
+- path traversal/absolute paths;
+- required entries;
+- exact SHA-256 для каждого payload entry;
+- manifest/report JSON shapes.
+
+Conversion меняет только `manifest.json` и/или `report.json`. Остальные payload bytes сохраняются; `before.sdshot` и `after.sdshot` проверяются тестом byte-for-byte. Затем `checksums.sha256` строится заново.
+
+### Idempotency
+
+Current v1 file возвращает successful `Changed=false` до backup/output checks. Повторный convert является no-op.
+
 ## SchemaContractService
-
-Service находится в `SysDiff.Storage` и не зависит от CLI.
-
-### Catalog
 
 Catalog содержит три `SchemaContractDescriptor`:
 
@@ -70,35 +142,7 @@ comparison  → comparison-report.schema.json
 bundle      → investigation-bundle-manifest.schema.json
 ```
 
-JSON Schema files включены в assembly как embedded resources. `schema show` читает именно embedded copy, а не отдельную ручную строку.
-
-### Validation pipeline
-
-```text
-file path
-   ↓
-size + JSON parser guard
-   ↓
-contract kind
-   ↓
-schema version guard
-   ├─ future → RequiresNewerSysDiff
-   └─ supported
-          ↓
-required/type/format/enum/range validation
-          ↓
-Valid или Invalid + JSON-path issues
-```
-
-Validation read-only и не вызывает storage/import APIs.
-
-### Compatibility principles
-
-- `additionalProperties: true` во всех public schemas;
-- unknown additive fields игнорируются validator и reader;
-- missing required/type/enum errors отклоняются;
-- future schema не интерпретируется как текущая;
-- breaking change требует нового schema major.
+JSON Schema files включены в assembly как embedded resources. Validation проверяет required/type/UUID/RFC3339/SemVer/enum/range и возвращает JSON-path issues. `additionalProperties: true` сохраняет additive compatibility.
 
 ## Writer integration
 
@@ -108,65 +152,40 @@ Validation read-only и не вызывает storage/import APIs.
 
 ### Comparison JSON
 
-`JsonReportRenderer` добавляет:
-
-```text
-format
-formatVersion
-schemaVersion
-sysDiffVersion
-generatedAtUtc
-```
-
-Nested domain objects сериализуются camelCase и строковыми enums.
+`JsonReportRenderer` пишет `format`, `formatVersion`, `schemaVersion`, `sysDiffVersion`, `generatedAtUtc` и camelCase domain objects.
 
 ### Bundle manifest
 
-`InvestigationBundleService`:
+`InvestigationBundleService` self-validates manifest до checksums/ZIP creation.
 
-1. формирует manifest с current producer version;
-2. добавляет `schemaVersion=1`;
-3. вызывает `SchemaContractService.ValidateJson`;
-4. блокирует ZIP creation при invalid writer output;
-5. только после этого создаёт checksums и archive.
+## Golden и legacy fixtures
 
-## Golden fixtures
+Schema fixtures проверяют current v1. Legacy fixture фиксирует реальную comparison shape 0.3–0.9.
 
-Fixtures копируются в test output. Tests проверяют:
+Tests покрывают:
 
-- Draft 2020-12 и `$id` embedded resources;
-- stable contract metadata;
-- valid snapshot/comparison/bundle;
-- additive extension fields;
-- missing required field;
-- invalid enum;
-- future schema rejection.
+- valid current schemas;
+- additive fields и future schema;
+- legacy plan;
+- backup equality;
+- unknown-field preservation;
+- repeated no-op;
+- bundle snapshot byte equality;
+- checksum rebuild;
+- tampering rejection до backup.
 
-Release smoke повторяет validation через self-contained `sysdiff.exe`.
+Release smoke повторяет comparison plan/convert/verify через self-contained `sysdiff.exe`.
 
-## Snapshot Archive Compatibility
-
-`SnapshotArchiveService.InspectAsync` независимо проверяет container integrity: ZIP paths, required entries, size, SHA-256, manifest, Snapshot ID и schema invariants. Это не заменяется JSON Schema validation.
+## Независимые линии versioning
 
 ```text
-Schema Contract → shape и semantics JSON
-Compatibility   → container/integrity/reader range
+Public JSON schema major = 1
+.sdshot container format = 1
+SQLite PRAGMA user_version = 9
+Product version = 0.11.0
 ```
 
-## Database Migration Service
-
-Migration Lab остаётся отдельным механизмом SQLite:
-
-```text
-read-only plan
-  → WAL checkpoint
-  → verified backup
-  → transaction
-  → migration ledger
-  → post-commit quick_check
-```
-
-`PRAGMA user_version=9` является внутренней database version и не связан с public JSON schema major 1.
+Legacy Bridge преобразует portable JSON/ZIP. Compatibility Center проверяет `.sdshot` container. Migration Lab изменяет SQLite. Эти механизмы не вызывают друг друга автоматически.
 
 ## Release package
 
@@ -174,6 +193,8 @@ Portable ZIP включает:
 
 ```text
 sysdiff.exe
+LEGACY_BRIDGE.txt
+legacy-fixtures/v0.9/*.json
 SCHEMA_CONTRACT.txt
 schemas/public/v1/*.schema.json
 schema-fixtures/v1/*.json
@@ -186,11 +207,12 @@ Release workflow после squash merge повторяет tests, package, smok
 
 ## Безопасность
 
-- schema validation не исправляет и не импортирует данные;
+- plans read-only;
+- portable conversion требует `--yes` и backup;
+- future schema не downgrades;
+- damaged/unknown legacy data не repair-ится автоматически;
+- temporary output не считается успешным до post-validation;
 - captured JSON values не выполняются как SQL или команды;
-- future schema отклоняется до partial interpretation;
-- bundle writer self-validates;
 - migration требует backup и `--yes`;
-- `.sdshot` не доверяет ZIP names или checksum text;
 - plugin DLL загружается только явно;
 - updater не заменяет работающий EXE напрямую.
