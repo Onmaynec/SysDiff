@@ -89,8 +89,7 @@ public sealed class ScaleLabService
                     Tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                     {
                         "synthetic",
-                        "scale-lab",
-                        variant
+                        "scale-lab"
                     }
                 };
 
