@@ -71,9 +71,9 @@ public sealed record SnapshotRecord
 
     public DateTimeOffset CreatedAtUtc { get; init; } = DateTimeOffset.UtcNow;
 
-    public string SysDiffVersion { get; init; } = "0.9.0";
+    public string SysDiffVersion { get; init; } = SysDiffProduct.Version;
 
-    public int SchemaVersion { get; init; } = 1;
+    public int SchemaVersion { get; init; } = SysDiffProduct.PublicSchemaVersion;
 
     public string ProfileName { get; init; } = "standard";
 
