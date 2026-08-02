@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Executable = ".\artifacts\publish\win-x64\sysdiff.exe",
-    [string]$ExpectedVersion = "0.11.0"
+    [string]$ExpectedVersion = "0.12.0"
 )
 
 $ErrorActionPreference = "Stop"
@@ -25,10 +25,12 @@ if (-not $fileVersion.StartsWith($ExpectedVersion, [System.StringComparison]::Or
 }
 
 $helpOutput = (& $Executable --help | Out-String)
-if ($LASTEXITCODE -ne 0 -or $helpOutput -notmatch "LEGACY BRIDGE 0.11") {
-    throw "Команда --help не содержит Legacy Bridge 0.11"
+if ($LASTEXITCODE -ne 0 -or $helpOutput -notmatch "SCALE LAB 0.12") {
+    throw "Команда --help не содержит Scale Lab 0.12"
 }
-if ($helpOutput -notmatch "legacy convert" -or
+if ($helpOutput -notmatch "scale benchmark" -or
+    $helpOutput -notmatch "LEGACY BRIDGE 0.11" -or
+    $helpOutput -notmatch "legacy convert" -or
     $helpOutput -notmatch "SCHEMA CONTRACT CENTER 0.10" -or
     $helpOutput -notmatch "schema validate" -or
     $helpOutput -notmatch "MIGRATION LAB 0.9" -or
@@ -36,12 +38,60 @@ if ($helpOutput -notmatch "legacy convert" -or
     $helpOutput -notmatch "compatibility inspect" -or
     $helpOutput -notmatch "update install --yes" -or
     $helpOutput -notmatch "DRIFT OPERATIONS 0.6") {
-    throw "Команда --help не содержит legacy, schema, migration, compatibility, updater и Drift Operations"
+    throw "Команда --help не содержит scale, legacy, schema, migration, compatibility, updater и Drift Operations"
+}
+
+$scaleMatrix = (& $Executable scale matrix --json | Out-String)
+if ($LASTEXITCODE -ne 0 -or
+    $scaleMatrix -notmatch '"productVersion": "0.12.0"' -or
+    $scaleMatrix -notmatch '"benchmarkArtifacts": 1000000' -or
+    $scaleMatrix -notmatch '"defaultBatchSize": 50000' -or
+    $scaleMatrix -notmatch '"boundedState":') {
+    throw "Команда scale matrix --json не прошла smoke-проверку"
+}
+
+$scaleSmoke = Join-Path $root "artifacts\smoke-scale"
+Remove-Item $scaleSmoke -Recurse -Force -ErrorAction SilentlyContinue
+New-Item $scaleSmoke -ItemType Directory -Force | Out-Null
+try {
+    $scaleBefore = Join-Path $scaleSmoke "before.ndjson"
+    $scaleAfter = Join-Path $scaleSmoke "after.ndjson"
+    $scaleChanges = Join-Path $scaleSmoke "changes.ndjson"
+
+    $null = (& $Executable scale synth $scaleBefore --count 10000 --variant before --change-every 100 --json | Out-String)
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $scaleBefore)) {
+        throw "Scale synth before не прошёл smoke-проверку"
+    }
+    $null = (& $Executable scale synth $scaleAfter --count 10000 --variant after --change-every 100 --json | Out-String)
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $scaleAfter)) {
+        throw "Scale synth after не прошёл smoke-проверку"
+    }
+
+    $scaleCompare = (& $Executable scale compare $scaleBefore $scaleAfter --output $scaleChanges --json | Out-String)
+    if ($LASTEXITCODE -ne 0 -or
+        $scaleCompare -notmatch '"modified": 100' -or
+        $scaleCompare -notmatch '"unchanged": 9900' -or
+        $scaleCompare -notmatch '"writtenChanges": 100' -or
+        -not (Test-Path $scaleChanges)) {
+        throw "Scale streaming comparison не прошёл smoke-проверку"
+    }
+
+    $benchmarkDirectory = Join-Path $scaleSmoke "benchmark"
+    $scaleBenchmark = (& $Executable scale benchmark --output-dir $benchmarkDirectory --artifacts 20000 --change-every 200 --max-managed-mb 128 --min-throughput 1 --json | Out-String)
+    if ($LASTEXITCODE -ne 0 -or
+        $scaleBenchmark -notmatch '"passed": true' -or
+        $scaleBenchmark -notmatch '"actualModified": 100' -or
+        -not (Test-Path (Join-Path $benchmarkDirectory "scale-benchmark.json"))) {
+        throw "Scale benchmark gate не прошёл smoke-проверку"
+    }
+}
+finally {
+    Remove-Item $scaleSmoke -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 $legacyMatrix = (& $Executable legacy matrix --json | Out-String)
 if ($LASTEXITCODE -ne 0 -or
-    $legacyMatrix -notmatch '"productVersion": "0.11.0"' -or
+    $legacyMatrix -notmatch '"productVersion": "0.12.0"' -or
     $legacyMatrix -notmatch '"targetSchemaVersion": 1' -or
     $legacyMatrix -notmatch '"sourceRange": "0.3.0-0.9.x"' -or
     $legacyMatrix -notmatch '"automaticBackup": true' -or
@@ -94,7 +144,7 @@ finally {
 
 $schemaCatalog = (& $Executable schema list --json | Out-String)
 if ($LASTEXITCODE -ne 0 -or
-    $schemaCatalog -notmatch '"productVersion": "0.11.0"' -or
+    $schemaCatalog -notmatch '"productVersion": "0.12.0"' -or
     $schemaCatalog -notmatch '"contractVersion": 1' -or
     $schemaCatalog -notmatch '"jsonSchemaDraft": "2020-12"' -or
     $schemaCatalog -notmatch '"key": "snapshot"' -or
@@ -144,7 +194,7 @@ if ($LASTEXITCODE -ne 0 -or
 
 $compatibilityStatus = (& $Executable compatibility status --json | Out-String)
 if ($LASTEXITCODE -ne 0 -or
-    $compatibilityStatus -notmatch '"productVersion": "0.11.0"' -or
+    $compatibilityStatus -notmatch '"productVersion": "0.12.0"' -or
     $compatibilityStatus -notmatch '"currentFormatVersion": 1' -or
     $compatibilityStatus -notmatch '"currentSchemaVersion": 1') {
     throw "Команда compatibility status --json не прошла smoke-проверку"
@@ -167,7 +217,7 @@ if ($LASTEXITCODE -ne 0 -or $caseOutput -notmatch "Кейсов пока нет"
 
 $updateStatus = (& $Executable update status --json | Out-String)
 if ($LASTEXITCODE -ne 0 -or
-    $updateStatus -notmatch '"currentVersion": "0.11.0"' -or
+    $updateStatus -notmatch '"currentVersion": "0.12.0"' -or
     $updateStatus -notmatch '"status":') {
     throw "Команда update status --json не прошла smoke-проверку"
 }
@@ -189,14 +239,14 @@ finally {
     Remove-Item Env:SYSDIFF_NO_ANIMATIONS -ErrorAction SilentlyContinue
     Remove-Item Env:NO_COLOR -ErrorAction SilentlyContinue
 }
-if ($LASTEXITCODE -ne 0 -or $tuiOutput -notmatch "SYSDIFF CYBER CONSOLE 0.11.0") {
+if ($LASTEXITCODE -ne 0 -or $tuiOutput -notmatch "SYSDIFF CYBER CONSOLE 0.12.0") {
     throw "Cyber Console smoke frame не сформирован"
 }
-if ($tuiOutput -notmatch "LEGACY BRIDGE" -or
-    $tuiOutput -notmatch "SOURCE: 0.3-0.9" -or
-    $tuiOutput -notmatch "OUTPUT: ATOMIC" -or
-    $tuiOutput -notmatch "SNAPSHOTS: PRESERVE") {
-    throw "Smoke frame не содержит ключевые блоки Legacy Bridge"
+if ($tuiOutput -notmatch "SCALE LAB" -or
+    $tuiOutput -notmatch "TARGET: 1,000,000" -or
+    $tuiOutput -notmatch "STATE: BOUNDED" -or
+    $tuiOutput -notmatch "REGRESSION: BLOCK") {
+    throw "Smoke frame не содержит ключевые блоки Scale Lab"
 }
 
-Write-Host "✅ Smoke-тест SysDiff $ExpectedVersion и Legacy Bridge пройден." -ForegroundColor Green
+Write-Host "✅ Smoke-тест SysDiff $ExpectedVersion и Scale Lab пройден." -ForegroundColor Green
