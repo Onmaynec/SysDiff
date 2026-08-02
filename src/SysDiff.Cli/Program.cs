@@ -108,40 +108,6 @@ internal static class Program
         services.AddSingleton<CommandApp>();
 
         await using ServiceProvider provider = services.BuildServiceProvider();
-
-        DatabaseMigrationService migrationService =
-            provider.GetRequiredService<DatabaseMigrationService>();
-        await migrationService.ValidateReadableAsync(CancellationToken.None);
-
-        ISnapshotStore store = provider.GetRequiredService<ISnapshotStore>();
-        await store.InitializeAsync(CancellationToken.None);
-        IInvestigationStore investigationStore = provider.GetRequiredService<IInvestigationStore>();
-        await investigationStore.InitializeAsync(CancellationToken.None);
-
-        if (!databaseExisted)
-        {
-            DatabaseMigrationResult bootstrap = await migrationService
-                .BootstrapNewDatabaseAsync(CancellationToken.None);
-            if (!bootstrap.Success)
-            {
-                throw new InvalidDataException(
-                    $"Не удалось подготовить новую базу Migration Lab: {bootstrap.Message}");
-            }
-        }
-
-        if (interactiveLaunch && !IsContinuousIntegration())
-        {
-            using var autoUpdateTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            try
-            {
-                await provider.GetRequiredService<UpdateService>()
-                    .TryAutoCheckAsync(autoUpdateTimeout.Token);
-            }
-            catch (OperationCanceledException)
-            {
-            }
-        }
-
         using var cancellation = new CancellationTokenSource();
         Console.CancelKeyPress += (_, eventArgs) =>
         {
@@ -151,6 +117,39 @@ internal static class Program
 
         try
         {
+            DatabaseMigrationService migrationService =
+                provider.GetRequiredService<DatabaseMigrationService>();
+            await migrationService.ValidateReadableAsync(cancellation.Token);
+
+            ISnapshotStore store = provider.GetRequiredService<ISnapshotStore>();
+            await store.InitializeAsync(cancellation.Token);
+            IInvestigationStore investigationStore = provider.GetRequiredService<IInvestigationStore>();
+            await investigationStore.InitializeAsync(cancellation.Token);
+
+            if (!databaseExisted)
+            {
+                DatabaseMigrationResult bootstrap = await migrationService
+                    .BootstrapNewDatabaseAsync(cancellation.Token);
+                if (!bootstrap.Success)
+                {
+                    throw new InvalidDataException(
+                        $"Не удалось подготовить новую базу Migration Lab: {bootstrap.Message}");
+                }
+            }
+
+            if (interactiveLaunch && !IsContinuousIntegration())
+            {
+                using var autoUpdateTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                try
+                {
+                    await provider.GetRequiredService<UpdateService>()
+                        .TryAutoCheckAsync(autoUpdateTimeout.Token);
+                }
+                catch (OperationCanceledException) when (!cancellation.IsCancellationRequested)
+                {
+                }
+            }
+
             CommandApp fallback = provider.GetRequiredService<CommandApp>();
             return await provider.GetRequiredService<V9CommandRouter>()
                 .RunAsync(cleanArgs, fallback, cancellation.Token);
