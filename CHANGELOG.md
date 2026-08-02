@@ -9,8 +9,51 @@
 - migration handlers для будущих schema major;
 - Authenticode code signing;
 - rollback preview системных изменений;
-- оптимизация больших snapshots;
+- streaming capture из Windows providers напрямую в storage;
 - полная RU/EN localization.
+
+## [0.12.0] — 2026-08-02
+
+### Добавлено
+
+- Scale Lab с командами `scale matrix|synth|sort|compare|benchmark`;
+- aliases `large` и `stream`;
+- operational format `SysDiff Artifact NDJSON v1`;
+- synthetic generator до 10 000 000 artifacts;
+- external chunk sort и k-way merge;
+- streaming merge-join comparison;
+- NDJSON change writer без materialize списка изменений;
+- managed memory, working set и throughput telemetry;
+- machine-readable benchmark result и exit code `10` для regression;
+- xUnit tests streaming comparison, sort, unsorted rejection и benchmark result;
+- dedicated GitHub Actions benchmark на 1 000 000 artifacts;
+- CI artifact `scale-benchmark-1000000`;
+- документация `docs/SCALE_LAB.md` и portable `SCALE_LAB.txt`.
+
+### Изменено
+
+- версия продукта, EXE, package и smoke-test обновлена до `0.12.0`;
+- command chain расширена до `V12 → V11 → V10 → V9 → V8 → V7 → V6 → V4 → V3`;
+- release smoke создаёт два datasets, сравнивает их и запускает benchmark gate;
+- public Schema Contract остаётся v1 и не включает operational NDJSON stream.
+
+### Производительность
+
+- generator держит один artifact;
+- sorter держит один bounded batch и cursor на chunk;
+- comparison держит только текущую before/after пару;
+- change report пишется по одной строке;
+- CI gate: 1 000 000 artifacts, managed heap ≤256 MiB, throughput ≥1 000 artifacts/sec;
+- duplicate identity и unsorted input обнаруживаются до недостоверного результата.
+
+### Безопасность
+
+- максимальная NDJSON line ограничена 4 MiB;
+- synthetic count ограничен 10 000 000;
+- invalid JSON и missing identity отклоняются;
+- input files не изменяются;
+- sort/compare output публикуется через temporary file и atomic move;
+- benchmark regression блокирует workflow отдельным exit code.
 
 ## [0.11.0] — 2026-08-02
 
@@ -61,51 +104,11 @@
 
 ## [0.10.0] — 2026-08-02
 
-### Добавлено
-
-- Schema Contract Center с командами `schema list|matrix|show|validate|verify`;
-- стабильный public Schema Contract major `1`;
-- Draft 2020-12 schemas для snapshot, comparison report и bundle manifest;
-- embedded schema resources в `SysDiff.Storage`;
-- `SchemaContractService` и public validation models;
-- статусы `Valid`, `Invalid`, `RequiresNewerSysDiff`;
-- required/type/UUID/RFC3339/SemVer/enum/range validation;
-- golden fixtures для трёх contracts;
-- tests missing required field, invalid enum, future schema и additive extensions;
-- `V10CommandRouter` поверх chain 0.9;
-- документация `docs/SCHEMA_CONTRACT.md`;
-- reader/writer matrix и deprecation policy.
-
-### Изменено
-
-- версия EXE, snapshots, CyberTheme, package и smoke-test обновлена до `0.10.0`;
-- версия продукта и schema contract централизованы в `SysDiffProduct`;
-- JSON comparison report получил `format`, `formatVersion`, `schemaVersion`, `sysDiffVersion`;
-- investigation bundle manifest получил текущую producer version и `schemaVersion=1`;
-- bundle writer self-validates manifest до ZIP packaging;
-- portable package включает schemas, golden fixtures и `SCHEMA_CONTRACT.txt`.
-
-### Совместимость
-
-- snapshot contract сохраняет исторический PascalCase `.sdshot`;
-- comparison и bundle contracts используют camelCase;
-- неизвестные additive properties разрешены;
-- breaking required/type/casing/meaning change требует schema major `2`;
-- future schema не интерпретируется частично;
-- старые CLI-команды делегируются через `V10 → V9 → V8 → V7 → V6 → V4 → V3`.
-
-### Безопасность
-
-- schema validation read-only;
-- invalid JSON получает точные path/code issues;
-- future schema блокируется;
-- writer output проверяется до bundle archive creation;
-- JSON values не выполняются как код, SQL или команды;
-- release smoke валидирует schemas и fixtures через published EXE.
+Schema Contract Center: stable public Schema Contract v1, Draft 2020-12 schemas, embedded catalog, golden fixtures, CLI validation и compatibility policy.
 
 ## [0.9.0] — 2026-08-02
 
-Migration Lab: dry-run database plan, verified SQLite backup, transaction rollback, migration history, lock, `PRAGMA user_version=9` и future database guard.
+Migration Lab: dry-run database plan, verified backup, transaction rollback, migration history, lock, `PRAGMA user_version=9` и future database guard.
 
 ## [0.8.0] — 2026-08-01
 
@@ -125,7 +128,7 @@ Cyber Console: Control Node, Command Deck, Provider Stream, boot sequence и saf
 
 ## [0.4.0] — 2026-08-01
 
-Terminal Control Center: fullscreen TUI, keyboard navigation и workflow modules.
+Terminal Control Center: fullscreen dashboard, keyboard navigation и workflow modules.
 
 ## [0.3.0] — 2026-08-01
 
