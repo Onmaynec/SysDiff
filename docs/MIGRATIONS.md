@@ -1,159 +1,120 @@
 # 🗃️ Migration Lab SysDiff
 
-SysDiff 0.9.0 добавляет контролируемые миграции локальной SQLite-базы. Механизм предназначен для безопасного перехода между внутренними версиями хранения до фиксации публичной schema 1.0.
+Migration Lab управляет внутренними версиями локальной SQLite-базы. Portable JSON/ZIP upgrades выполняются отдельным Legacy Bridge и не изменяют `sysdiff.db`.
 
 ## Быстрый старт
-
-Проверить состояние без изменений:
 
 ```powershell
 sysdiff migration status
 sysdiff migration plan
 sysdiff migration plan --json
-```
-
-Посмотреть историю:
-
-```powershell
 sysdiff migration history
-sysdiff migration history --json
-```
-
-Применить ожидающие миграции:
-
-```powershell
 sysdiff migration apply --yes
-sysdiff migration apply --yes --json
 ```
 
 Без `--yes` применение отклоняется.
 
-## Политика запуска
+## Новая и существующая база
 
-### Новая база
+Если `sysdiff.db` отсутствовала, SysDiff создаёт таблицы и bootstrap текущего ledger без backup пустой базы.
 
-Если `sysdiff.db` не существовала до запуска, SysDiff создаёт обычные таблицы и сразу выполняет bootstrap текущего migration ledger. Backup пустой новой базы не создаётся.
+Существующая база не мигрируется при обычном запуске. Пользователь сначала получает read-only plan и затем явно запускает apply.
 
-### Существующая база
+## Что проверяет plan
 
-Обычный запуск не применяет новые миграции автоматически. Пользователь сначала получает план и только затем явно запускает `migration apply --yes`.
-
-Это разделяет запуск приложения и изменение существующих пользовательских данных.
-
-## Что проверяет план
-
-Migration Lab проверяет:
-
-- наличие файла базы;
+- file existence;
 - `PRAGMA quick_check`;
-- текущий `PRAGMA user_version`;
-- известные записи `app_migrations`;
-- неизвестные migration IDs;
-- список ожидающих шагов;
-- необходимость резервной копии;
-- возможность безопасного применения.
+- `PRAGMA user_version`;
+- known/unknown `app_migrations` IDs;
+- pending steps;
+- backup requirement;
+- возможность safe apply.
 
-Статусы:
-
-| Статус | Значение |
+| Status | Meaning |
 |---|---|
-| `Current` | все известные миграции применены |
-| `MigrationRequired` | есть ожидающие безопасные шаги |
-| `RequiresNewerSysDiff` | база создана более новой или неизвестной версией |
-| `Invalid` | нарушена целостность или ledger не согласован с `user_version` |
+| `Current` | все known migrations применены |
+| `MigrationRequired` | существует последовательный safe path |
+| `RequiresNewerSysDiff` | future user_version или unknown migration ID |
+| `Invalid` | integrity/ledger inconsistency |
 
-## `PRAGMA user_version`
-
-Версия 0.9.0 использует:
+## Current database version
 
 ```text
 PRAGMA user_version = 9
 ```
 
-Это внутренний целочисленный guard, а не публичная версия JSON/SQLite schema. База с `user_version` выше поддерживаемого отклоняется до вызова store initialization, чтобы старая сборка не пыталась модифицировать более новую структуру.
+Это internal guard, а не public JSON schema major `1` и не product version `0.11.0`. База с более новым value отклоняется до store initialization.
 
-## Резервная копия
+## Backup и transaction
 
-Перед изменением существующей базы SysDiff:
+Перед изменением existing database:
 
-1. получает exclusive migration lock;
-2. выполняет WAL checkpoint;
-3. создаёт согласованную копию через SQLite backup API;
-4. запускает `quick_check` копии;
-5. только после этого начинает SQL transaction.
+```text
+exclusive migration lock
+      ↓
+WAL checkpoint
+      ↓
+SQLite Backup API
+      ↓
+backup quick_check
+      ↓
+BEGIN transaction
+      ↓
+migration SQL + ledger records
+      ↓
+COMMIT
+      ↓
+post-commit quick_check
+```
 
-Путь по умолчанию:
+SQL failure откатывает schema и history record вместе. Failed post-commit integrity восстанавливает database из backup.
+
+Default backup directory:
 
 ```text
 <data-directory>\backups\migrations\
-    sysdiff-YYYYMMDD-HHMMSSfff-before-<migration-id>.db
 ```
 
-В portable mode `<data-directory>` находится рядом с `sysdiff.exe` в каталоге `data`.
+## Known migrations
 
-## Транзакции и rollback
+### `0.6.0-investigations`
 
-Каждая migration definition выполняется в отдельной SQLite transaction.
+Добавляет investigation settings, cases, links и timeline events.
 
-```text
-plan
-  ↓
-backup
-  ↓
-begin transaction
-  ↓
-migration SQL
-  ↓
-app_migrations + migration_runs
-  ↓
-commit
-  ↓
-quick_check
+### `0.9.0-migration-lab`
+
+Добавляет `migration_runs`, `database_metadata`, history indexes и устанавливает `user_version=9`.
+
+Core snapshot/comparison tables не переписываются.
+
+## Portable data — отдельный механизм
+
+SysDiff 0.11.0 добавляет Legacy Bridge:
+
+```powershell
+sysdiff legacy plan comparison .\report-old.json
+sysdiff legacy convert comparison .\report-old.json --yes
+sysdiff legacy plan bundle .\investigation-old.zip
+sysdiff legacy convert bundle .\investigation-old.zip --yes
 ```
 
-Если SQL завершается ошибкой, transaction откатывается. Записи migration history не остаются применёнными частично.
+Legacy Bridge использует обычный file backup и atomic output. Он не открывает SQLite и не записывает migration ledger. Migration Lab, Legacy Bridge, Schema Contract Center и Compatibility Center остаются независимыми safety layers.
 
-Если итоговый `quick_check` после commit не проходит, SysDiff восстанавливает базу из созданного backup.
+Подробнее: [LEGACY_BRIDGE.md](LEGACY_BRIDGE.md).
 
-## Migration ledger 0.9
+## Восстановление SQLite вручную
 
-Миграция `0.9.0-migration-lab` добавляет:
+1. закройте все процессы SysDiff;
+2. сохраните текущий `sysdiff.db` отдельно;
+3. выберите последний verified backup;
+4. скопируйте backup на место database;
+5. выполните `migration status`;
+6. убедитесь в `Integrity: ok`;
+7. повторно изучите `migration plan`.
 
-```text
-migration_runs
-    id
-    migration_id
-    started_utc
-    finished_utc
-    status
-    backup_path
-    error
+Не заменяйте database, пока SysDiff или другой SQLite client держит её открытой.
 
-database_metadata
-    key
-    value
-    updated_utc
-```
-
-Также создаются индексы истории и устанавливается `PRAGMA user_version = 9`.
-
-Существующие таблицы snapshots, artifacts, comparisons, investigations, cases и timeline не переписываются.
-
-## Восстановление вручную
-
-Если требуется ручное восстановление:
-
-1. полностью закройте все процессы SysDiff;
-2. сохраните повреждённый `sysdiff.db` отдельно для диагностики;
-3. выберите последний проверенный backup;
-4. скопируйте backup на место `sysdiff.db`;
-5. запустите `sysdiff migration status`;
-6. убедитесь, что `Integrity: ok`;
-7. повторно выполните `migration plan`.
-
-Не заменяйте базу, пока SysDiff или другой SQLite-клиент держит её открытой.
-
-## JSON для автоматизации
+## JSON automation
 
 ```powershell
 sysdiff migration status --json
@@ -162,12 +123,13 @@ sysdiff migration history --json
 sysdiff migration apply --yes --json
 ```
 
-Enum-статусы сериализуются строками, имена полей используют `camelCase`.
+Enum statuses сериализуются строками, fields используют `camelCase`.
 
-## Ограничения 0.9.0
+## Ограничения 0.11.0
 
-- стабильная публичная schema 1.0 ещё не объявлена;
-- миграция 0.9 additive и не конвертирует переносимые `.sdshot`;
-- automatic migration существующей базы отсутствует;
-- rollback handlers системных изменений не входят в Migration Lab;
-- Authenticode code signing пока не настроен.
+- automatic migration existing database отсутствует;
+- future/unknown migration definitions не угадываются;
+- SQLite upgrade chain до будущего product 1.0 ещё не зафиксирован;
+- portable conversion не импортирует данные автоматически;
+- rollback handlers системных Windows changes не входят в Migration Lab;
+- Authenticode пока не настроен.
