@@ -4,22 +4,33 @@
 
 # 🇷🇺 Русская документация SysDiff
 
-**Основной [`README.md`](README.md) полностью написан на русском и описывает актуальную версию 0.9.0.**
+**Основной [`README.md`](README.md) описывает актуальную версию 0.10.0.**
 
 </div>
 
-## 🗃️ Главное изменение 0.9.0
+## 📐 Главное изменение 0.10.0
 
-SysDiff получил **Migration Lab** для безопасных изменений локальной SQLite-базы:
+SysDiff получил стабильный **Schema Contract v1**:
 
-- read-only status и dry-run plan;
-- явное применение только после `--yes`;
-- SQLite-consistent backup;
-- transaction rollback;
-- история migrations и запусков;
-- `PRAGMA user_version` guard;
-- отказ от базы из более новой версии;
-- JSON-вывод для CI.
+- JSON Schema Draft 2020-12;
+- snapshot, comparison report и bundle manifest;
+- CLI validation и embedded schemas;
+- golden fixtures в CI;
+- unknown additive fields разрешены;
+- future schema блокируется;
+- breaking change требует нового schema major.
+
+```powershell
+sysdiff schema list
+sysdiff schema show snapshot
+sysdiff schema validate snapshot .\snapshot.json
+sysdiff schema validate comparison .\report.json --json
+sysdiff schema validate bundle .\manifest.json --json
+```
+
+Подробнее: [docs/SCHEMA_CONTRACT.md](docs/SCHEMA_CONTRACT.md).
+
+## 🗃️ Migration Lab
 
 ```powershell
 sysdiff migration status
@@ -28,17 +39,16 @@ sysdiff migration history
 sysdiff migration apply --yes
 ```
 
-Существующая база не мигрируется при обычном запуске. Подробнее: [docs/MIGRATIONS.md](docs/MIGRATIONS.md).
+Существующая база не мигрируется при обычном запуске. Apply создаёт backup и выполняется транзакционно.
 
 ## 🧩 Compatibility Center
 
 ```powershell
 sysdiff compatibility status
 sysdiff compatibility inspect .\before.sdshot
-sysdiff compatibility inspect .\before.sdshot --json
 ```
 
-Inspection проверяет `.sdshot` без записи в SQLite и не импортирует более новую схему частично.
+Inspection проверяет `.sdshot` без записи в SQLite и не импортирует более новую schema частично.
 
 ## 🔄 Release Channel
 
@@ -48,49 +58,20 @@ sysdiff update download
 sysdiff update install --yes --restart
 ```
 
-По умолчанию auto-check включён, auto-download выключен, а установка всегда требует подтверждения.
-
-## 🧭 Drift Operations
-
-```powershell
-sysdiff baseline set trusted-clean
-sysdiff drift scan --profile standard --noise Balanced
-sysdiff timeline list
-sysdiff case create "Installer audit" --tags installer,test
-```
-
-Интерактивный запуск:
-
-```powershell
-sysdiff
-```
-
-Безопасный режим интерфейса:
-
-```powershell
-$env:SYSDIFF_NO_ANIMATIONS = "1"
-$env:NO_COLOR = "1"
-sysdiff
-```
-
 ## 📚 Разделы
 
 - [Главная страница](README.md)
-- [Migration Lab](docs/MIGRATIONS.md)
+- [Schema Contract v1](docs/SCHEMA_CONTRACT.md)
 - [Совместимость](docs/COMPATIBILITY.md)
-- [Обновления и Release Channel](docs/UPDATES.md)
-- [Drift Operations](docs/DRIFT_OPERATIONS.md)
-- [Cyber Console](docs/TERMINAL_UI.md)
+- [Migration Lab](docs/MIGRATIONS.md)
+- [Обновления](docs/UPDATES.md)
 - [Команды](docs/COMMANDS.md)
 - [Архитектура](docs/ARCHITECTURE.md)
-- [Провайдеры](docs/PROVIDERS.md)
 - [Переносимые форматы](docs/PORTABLE_FORMATS.md)
 - [Provider SDK](docs/PROVIDER_SDK.md)
-- [Конфиденциальность](docs/PRIVACY.md)
 - [Безопасность](docs/SECURITY.md)
-- [Решение проблем](docs/TROUBLESHOOTING.md)
 - [Roadmap](docs/ROADMAP.md)
 - [История изменений](CHANGELOG.md)
 
 > [!IMPORTANT]
-> SysDiff не является антивирусом. Версия 0.9.0 пока не имеет Authenticode-подписи; это явно указано в release manifest через `unsigned: true`.
+> SysDiff не является антивирусом. Версия 0.10.0 пока не имеет Authenticode-подписи; release manifest содержит `unsigned: true`.
