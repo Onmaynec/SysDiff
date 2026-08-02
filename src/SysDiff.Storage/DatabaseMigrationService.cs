@@ -143,7 +143,6 @@ public sealed class DatabaseMigrationService
             cancellationToken);
         int userVersion = await GetUserVersionAsync(connection, cancellationToken);
         string integrity = await QuickCheckAsync(connection, cancellationToken);
-        bool integrityOk = integrity.Equals("ok", StringComparison.OrdinalIgnoreCase);
         List<DatabaseMigrationHistoryEntry> applied = await ReadAppliedMigrationsAsync(
             connection,
             cancellationToken);
@@ -163,7 +162,7 @@ public sealed class DatabaseMigrationService
             .OrderBy(id => id, StringComparer.Ordinal)
             .ToList();
 
-        if (!integrityOk)
+        if (!integrity.Equals("ok", StringComparison.OrdinalIgnoreCase))
         {
             return CreatePlan(
                 userVersion,
@@ -265,20 +264,10 @@ public sealed class DatabaseMigrationService
         DateTimeOffset started = DateTimeOffset.UtcNow;
         if (!File.Exists(_databasePath))
         {
-            return Failure(
-                started,
-                null,
-                null,
-                "Файл базы не найден.");
+            return Failure(started, null, null, "Файл базы не найден.");
         }
 
-        string? lockDirectory = Path.GetDirectoryName(_lockPath);
-        if (!string.IsNullOrWhiteSpace(lockDirectory))
-        {
-            Directory.CreateDirectory(lockDirectory);
-        }
-
-        FileStream? migrationLock = null;
+        FileStream migrationLock;
         try
         {
             migrationLock = new FileStream(
@@ -296,154 +285,170 @@ public sealed class DatabaseMigrationService
                 $"Другая миграция уже выполняется: {exception.Message}");
         }
 
+        DatabaseMigrationResult result;
         await using (migrationLock)
         {
+            result = await ApplyLockedAsync(createBackup, started, cancellationToken);
+        }
+
+        try
+        {
+            File.Delete(_lockPath);
+        }
+        catch (IOException)
+        {
+        }
+
+        return result;
+    }
+
+    private async Task<DatabaseMigrationResult> ApplyLockedAsync(
+        bool createBackup,
+        DateTimeOffset started,
+        CancellationToken cancellationToken)
+    {
+        DatabaseMigrationPlan plan = await PlanAsync(cancellationToken);
+        if (plan.PendingMigrations.Count == 0
+            && plan.Status == DatabaseCompatibilityStatus.Current)
+        {
+            return new DatabaseMigrationResult
+            {
+                Success = true,
+                Changed = false,
+                StartedAtUtc = started,
+                FinishedAtUtc = DateTimeOffset.UtcNow,
+                Message = "Применять нечего: база уже актуальна."
+            };
+        }
+
+        if (!plan.CanApply)
+        {
+            return Failure(started, null, null, plan.Message);
+        }
+
+        string? backupPath = createBackup
+            ? await CreateBackupAsync(plan.PendingMigrations[0].Id, cancellationToken)
+            : null;
+        var appliedIds = new List<string>();
+
+        foreach (DatabaseMigrationDescriptor descriptor in plan.PendingMigrations)
+        {
+            DatabaseMigrationDefinition definition = _migrations.Single(
+                value => value.Descriptor.Id.Equals(descriptor.Id, StringComparison.Ordinal));
+            Guid runId = Guid.NewGuid();
+            DateTimeOffset migrationStarted = DateTimeOffset.UtcNow;
+
             try
             {
-                DatabaseMigrationPlan plan = await PlanAsync(cancellationToken);
-                if (plan.PendingMigrations.Count == 0 && plan.Status == DatabaseCompatibilityStatus.Current)
-                {
-                    return new DatabaseMigrationResult
-                    {
-                        Success = true,
-                        Changed = false,
-                        StartedAtUtc = started,
-                        FinishedAtUtc = DateTimeOffset.UtcNow,
-                        Message = "Применять нечего: база уже актуальна."
-                    };
-                }
-
-                if (!plan.CanApply)
-                {
-                    return Failure(started, null, null, plan.Message);
-                }
-
-                string? backupPath = createBackup
-                    ? await CreateBackupAsync(plan.PendingMigrations[0].Id, cancellationToken)
-                    : null;
-                var appliedIds = new List<string>();
-
-                foreach (DatabaseMigrationDescriptor descriptor in plan.PendingMigrations)
-                {
-                    DatabaseMigrationDefinition definition = _migrations.Single(
-                        value => value.Descriptor.Id.Equals(descriptor.Id, StringComparison.Ordinal));
-                    Guid runId = Guid.NewGuid();
-                    DateTimeOffset migrationStarted = DateTimeOffset.UtcNow;
-
-                    try
-                    {
-                        await using SqliteConnection connection = await OpenAsync(
-                            SqliteOpenMode.ReadWrite,
-                            cancellationToken);
-                        using SqliteTransaction transaction = connection.BeginTransaction();
-
-                        await using (SqliteCommand command = connection.CreateCommand())
-                        {
-                            command.Transaction = transaction;
-                            command.CommandText = definition.Sql;
-                            await command.ExecuteNonQueryAsync(cancellationToken);
-                        }
-
-                        DateTimeOffset finished = DateTimeOffset.UtcNow;
-                        await using (SqliteCommand history = connection.CreateCommand())
-                        {
-                            history.Transaction = transaction;
-                            history.CommandText = """
-                                INSERT INTO app_migrations(id, applied_utc, description)
-                                VALUES($id, $applied, $description)
-                                ON CONFLICT(id) DO NOTHING;
-                                """;
-                            history.Parameters.AddWithValue("$id", descriptor.Id);
-                            history.Parameters.AddWithValue("$applied", finished.ToString("O"));
-                            history.Parameters.AddWithValue("$description", descriptor.Description);
-                            await history.ExecuteNonQueryAsync(cancellationToken);
-                        }
-
-                        await using (SqliteCommand run = connection.CreateCommand())
-                        {
-                            run.Transaction = transaction;
-                            run.CommandText = """
-                                INSERT INTO migration_runs(
-                                    id, migration_id, started_utc, finished_utc,
-                                    status, backup_path, error)
-                                VALUES($id, $migration, $started, $finished,
-                                       $status, $backup, NULL);
-                                """;
-                            run.Parameters.AddWithValue("$id", runId.ToString("D"));
-                            run.Parameters.AddWithValue("$migration", descriptor.Id);
-                            run.Parameters.AddWithValue("$started", migrationStarted.ToString("O"));
-                            run.Parameters.AddWithValue("$finished", finished.ToString("O"));
-                            run.Parameters.AddWithValue("$status", DatabaseMigrationRunStatus.Applied.ToString());
-                            run.Parameters.AddWithValue("$backup", (object?)backupPath ?? DBNull.Value);
-                            await run.ExecuteNonQueryAsync(cancellationToken);
-                        }
-
-                        transaction.Commit();
-                        appliedIds.Add(descriptor.Id);
-                    }
-                    catch (Exception exception) when (exception is not OperationCanceledException)
-                    {
-                        await TryRecordFailureAsync(
-                            runId,
-                            descriptor.Id,
-                            migrationStarted,
-                            backupPath,
-                            exception.Message,
-                            cancellationToken);
-                        return Failure(
-                            started,
-                            backupPath,
-                            descriptor.Id,
-                            $"Миграция {descriptor.Id} отменена транзакцией: {exception.Message}",
-                            appliedIds);
-                    }
-                }
-
-                await using (SqliteConnection verification = await OpenAsync(
-                    SqliteOpenMode.ReadOnly,
-                    cancellationToken))
-                {
-                    string integrity = await QuickCheckAsync(verification, cancellationToken);
-                    if (!integrity.Equals("ok", StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (backupPath is not null)
-                        {
-                            await RestoreBackupAsync(backupPath, cancellationToken);
-                        }
-                        return Failure(
-                            started,
-                            backupPath,
-                            appliedIds.LastOrDefault(),
-                            "После миграции SQLite quick_check не пройден; восстановлена резервная копия.",
-                            appliedIds);
-                    }
-                }
-
-                return new DatabaseMigrationResult
-                {
-                    Success = true,
-                    Changed = appliedIds.Count > 0,
-                    BackupPath = backupPath,
-                    AppliedMigrationIds = appliedIds,
-                    StartedAtUtc = started,
-                    FinishedAtUtc = DateTimeOffset.UtcNow,
-                    Message = appliedIds.Count == 0
-                        ? "Применять нечего."
-                        : $"Успешно применено миграций: {appliedIds.Count}."
-                };
+                await ApplyOneAsync(
+                    definition,
+                    runId,
+                    migrationStarted,
+                    backupPath,
+                    cancellationToken);
+                appliedIds.Add(descriptor.Id);
             }
-            finally
+            catch (Exception exception) when (exception is not OperationCanceledException)
             {
-                try
-                {
-                    migrationLock.Close();
-                    File.Delete(_lockPath);
-                }
-                catch (IOException)
-                {
-                }
+                await TryRecordFailureAsync(
+                    runId,
+                    descriptor.Id,
+                    migrationStarted,
+                    backupPath,
+                    exception.Message,
+                    cancellationToken);
+                return Failure(
+                    started,
+                    backupPath,
+                    descriptor.Id,
+                    $"Миграция {descriptor.Id} отменена транзакцией: {exception.Message}",
+                    appliedIds);
             }
         }
+
+        string integrity = await CheckIntegrityAsync(cancellationToken);
+        if (!integrity.Equals("ok", StringComparison.OrdinalIgnoreCase))
+        {
+            if (backupPath is not null)
+            {
+                await RestoreBackupAsync(backupPath, cancellationToken);
+            }
+            return Failure(
+                started,
+                backupPath,
+                appliedIds.LastOrDefault(),
+                backupPath is null
+                    ? "После bootstrap SQLite quick_check не пройден."
+                    : "После миграции SQLite quick_check не пройден; восстановлена резервная копия.",
+                backupPath is null ? appliedIds : []);
+        }
+
+        return new DatabaseMigrationResult
+        {
+            Success = true,
+            Changed = appliedIds.Count > 0,
+            BackupPath = backupPath,
+            AppliedMigrationIds = appliedIds,
+            StartedAtUtc = started,
+            FinishedAtUtc = DateTimeOffset.UtcNow,
+            Message = $"Успешно применено миграций: {appliedIds.Count}."
+        };
+    }
+
+    private async Task ApplyOneAsync(
+        DatabaseMigrationDefinition definition,
+        Guid runId,
+        DateTimeOffset started,
+        string? backupPath,
+        CancellationToken cancellationToken)
+    {
+        await using SqliteConnection connection = await OpenAsync(
+            SqliteOpenMode.ReadWrite,
+            cancellationToken);
+        using SqliteTransaction transaction = connection.BeginTransaction();
+
+        await using (SqliteCommand command = connection.CreateCommand())
+        {
+            command.Transaction = transaction;
+            command.CommandText = definition.Sql;
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        DateTimeOffset finished = DateTimeOffset.UtcNow;
+        await using (SqliteCommand history = connection.CreateCommand())
+        {
+            history.Transaction = transaction;
+            history.CommandText = """
+                INSERT INTO app_migrations(id, applied_utc, description)
+                VALUES($id, $applied, $description)
+                ON CONFLICT(id) DO NOTHING;
+                """;
+            history.Parameters.AddWithValue("$id", definition.Descriptor.Id);
+            history.Parameters.AddWithValue("$applied", finished.ToString("O"));
+            history.Parameters.AddWithValue("$description", definition.Descriptor.Description);
+            await history.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await using (SqliteCommand run = connection.CreateCommand())
+        {
+            run.Transaction = transaction;
+            run.CommandText = """
+                INSERT INTO migration_runs(
+                    id, migration_id, started_utc, finished_utc,
+                    status, backup_path, error)
+                VALUES($id, $migration, $started, $finished,
+                       $status, $backup, NULL);
+                """;
+            run.Parameters.AddWithValue("$id", runId.ToString("D"));
+            run.Parameters.AddWithValue("$migration", definition.Descriptor.Id);
+            run.Parameters.AddWithValue("$started", started.ToString("O"));
+            run.Parameters.AddWithValue("$finished", finished.ToString("O"));
+            run.Parameters.AddWithValue("$status", DatabaseMigrationRunStatus.Applied.ToString());
+            run.Parameters.AddWithValue("$backup", (object?)backupPath ?? DBNull.Value);
+            await run.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        transaction.Commit();
     }
 
     private DatabaseMigrationPlan CreatePlan(
@@ -492,22 +497,16 @@ public sealed class DatabaseMigrationService
             await checkpoint.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        var destination = new SqliteConnection(new SqliteConnectionStringBuilder
+        await using SqliteConnection destination = await OpenExternalAsync(
+            backupPath,
+            SqliteOpenMode.ReadWriteCreate,
+            cancellationToken);
+        source.BackupDatabase(destination);
+        string integrity = await QuickCheckAsync(destination, cancellationToken);
+        if (!integrity.Equals("ok", StringComparison.OrdinalIgnoreCase))
         {
-            DataSource = backupPath,
-            Mode = SqliteOpenMode.ReadWriteCreate,
-            ForeignKeys = true
-        }.ToString());
-        await using (destination)
-        {
-            await destination.OpenAsync(cancellationToken);
-            source.BackupDatabase(destination);
-            string integrity = await QuickCheckAsync(destination, cancellationToken);
-            if (!integrity.Equals("ok", StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidDataException(
-                    $"Резервная копия не прошла SQLite quick_check: {integrity}");
-            }
+            throw new InvalidDataException(
+                $"Резервная копия не прошла SQLite quick_check: {integrity}");
         }
 
         return backupPath;
@@ -517,20 +516,14 @@ public sealed class DatabaseMigrationService
         string backupPath,
         CancellationToken cancellationToken)
     {
-        var source = new SqliteConnection(new SqliteConnectionStringBuilder
-        {
-            DataSource = backupPath,
-            Mode = SqliteOpenMode.ReadOnly,
-            ForeignKeys = true
-        }.ToString());
-        await using (source)
-        {
-            await source.OpenAsync(cancellationToken);
-            await using SqliteConnection destination = await OpenAsync(
-                SqliteOpenMode.ReadWrite,
-                cancellationToken);
-            source.BackupDatabase(destination);
-        }
+        await using SqliteConnection source = await OpenExternalAsync(
+            backupPath,
+            SqliteOpenMode.ReadOnly,
+            cancellationToken);
+        await using SqliteConnection destination = await OpenAsync(
+            SqliteOpenMode.ReadWrite,
+            cancellationToken);
+        source.BackupDatabase(destination);
     }
 
     private async Task TryRecordFailureAsync(
@@ -644,16 +637,23 @@ public sealed class DatabaseMigrationService
         return result;
     }
 
-    private async Task<SqliteConnection> OpenAsync(
+    private Task<SqliteConnection> OpenAsync(
+        SqliteOpenMode mode,
+        CancellationToken cancellationToken) =>
+        OpenExternalAsync(_databasePath, mode, cancellationToken);
+
+    private static async Task<SqliteConnection> OpenExternalAsync(
+        string path,
         SqliteOpenMode mode,
         CancellationToken cancellationToken)
     {
         var connection = new SqliteConnection(new SqliteConnectionStringBuilder
         {
-            DataSource = _databasePath,
+            DataSource = path,
             Mode = mode,
-            Cache = SqliteCacheMode.Shared,
-            ForeignKeys = true
+            Cache = SqliteCacheMode.Private,
+            ForeignKeys = true,
+            Pooling = false
         }.ToString());
         await connection.OpenAsync(cancellationToken);
 
@@ -668,6 +668,14 @@ public sealed class DatabaseMigrationService
         }
 
         return connection;
+    }
+
+    private async Task<string> CheckIntegrityAsync(CancellationToken cancellationToken)
+    {
+        await using SqliteConnection connection = await OpenAsync(
+            SqliteOpenMode.ReadOnly,
+            cancellationToken);
+        return await QuickCheckAsync(connection, cancellationToken);
     }
 
     private static async Task<int> GetUserVersionAsync(
