@@ -8,6 +8,8 @@ namespace SysDiff.Storage;
 public sealed class SchemaContractService
 {
     private const long MaximumDocumentBytes = 1024L * 1024L * 1024L;
+    private const string SemVerPattern =
+        "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$";
 
     private static readonly IReadOnlyList<SchemaContractDescriptor> Contracts =
     [
@@ -116,12 +118,7 @@ public sealed class SchemaContractService
                 useAsync: true);
             using JsonDocument document = await JsonDocument.ParseAsync(
                 stream,
-                new JsonDocumentOptions
-                {
-                    AllowTrailingCommas = false,
-                    CommentHandling = JsonCommentHandling.Disallow,
-                    MaxDepth = 128
-                },
+                JsonDocumentOptions,
                 cancellationToken);
             return ValidateElement(kind, document.RootElement, fullPath);
         }
@@ -144,14 +141,7 @@ public sealed class SchemaContractService
         SchemaContractDescriptor contract = GetContract(kind);
         try
         {
-            using JsonDocument document = JsonDocument.Parse(
-                json,
-                new JsonDocumentOptions
-                {
-                    AllowTrailingCommas = false,
-                    CommentHandling = JsonCommentHandling.Disallow,
-                    MaxDepth = 128
-                });
+            using JsonDocument document = JsonDocument.Parse(json, JsonDocumentOptions);
             return ValidateElement(kind, document.RootElement, inputPath);
         }
         catch (JsonException exception)
@@ -172,17 +162,16 @@ public sealed class SchemaContractService
     {
         SchemaContractDescriptor contract = GetContract(kind);
         var issues = new List<SchemaValidationIssue>();
-        int? schemaVersion = kind switch
-        {
-            SchemaContractKind.Snapshot => ReadSchemaVersion(root, "SchemaVersion"),
-            _ => ReadSchemaVersion(root, "schemaVersion")
-        };
+        string schemaProperty = kind == SchemaContractKind.Snapshot
+            ? "SchemaVersion"
+            : "schemaVersion";
+        int? schemaVersion = ReadSchemaVersion(root, schemaProperty);
 
         if (schemaVersion > contract.SchemaVersion)
         {
             issues.Add(new SchemaValidationIssue
             {
-                Path = kind == SchemaContractKind.Snapshot ? "$.SchemaVersion" : "$.schemaVersion",
+                Path = "$." + schemaProperty,
                 Code = "requires_newer_sysdiff",
                 Message = $"Документ использует schema version {schemaVersion}, " +
                           $"а текущий reader поддерживает максимум {contract.SchemaVersion}."
@@ -197,16 +186,17 @@ public sealed class SchemaContractService
             };
         }
 
+        var validator = new ContractValidator(issues);
         switch (kind)
         {
             case SchemaContractKind.Snapshot:
-                ValidateSnapshot(root, issues);
+                ValidateSnapshot(root, validator);
                 break;
             case SchemaContractKind.ComparisonReport:
-                ValidateComparisonReport(root, issues);
+                ValidateComparisonReport(root, validator);
                 break;
             case SchemaContractKind.InvestigationBundleManifest:
-                ValidateBundleManifest(root, issues);
+                ValidateBundleManifest(root, validator);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, null);
@@ -227,80 +217,77 @@ public sealed class SchemaContractService
         };
     }
 
-    private static void ValidateSnapshot(JsonElement root, List<SchemaValidationIssue> issues)
+    private static void ValidateSnapshot(JsonElement root, ContractValidator validator)
     {
-        if (!RequireObject(root, "$", issues))
+        if (!validator.Object(root, "$"))
         {
             return;
         }
+        validator.Guid(root, "Id", "$");
+        validator.NonEmptyString(root, "Name", "$");
+        validator.DateTime(root, "CreatedAtUtc", "$");
+        validator.SemVer(root, "SysDiffVersion", "$");
+        validator.Integer(root, "SchemaVersion", "$", expected: 1);
+        validator.NonEmptyString(root, "ProfileName", "$");
+        validator.Enum(root, "Status", "$", SnapshotStatuses);
+        validator.NonEmptyString(root, "Architecture", "$");
 
-        RequireGuid(root, "Id", "$", issues);
-        RequireNonEmptyString(root, "Name", "$", issues);
-        RequireDateTime(root, "CreatedAtUtc", "$", issues);
-        RequireVersionString(root, "SysDiffVersion", "$", issues);
-        RequireInteger(root, "SchemaVersion", "$", issues, expected: 1);
-        RequireNonEmptyString(root, "ProfileName", "$", issues);
-        RequireEnum(root, "Status", "$", SnapshotStatuses, issues);
-        RequireNonEmptyString(root, "Architecture", "$", issues);
-
-        if (RequireArray(root, "ProviderResults", "$", issues, out JsonElement providers))
+        if (validator.Array(root, "ProviderResults", "$", out JsonElement providers))
         {
             int index = 0;
             foreach (JsonElement provider in providers.EnumerateArray())
             {
-                ValidateProvider(provider, $"$.ProviderResults[{index}]", issues);
+                ValidateProvider(provider, $"$.ProviderResults[{index}]", validator);
                 index++;
             }
         }
-
-        if (RequireArray(root, "Artifacts", "$", issues, out JsonElement artifacts))
+        if (validator.Array(root, "Artifacts", "$", out JsonElement artifacts))
         {
-            ValidateArtifacts(artifacts, "$.Artifacts", issues);
+            ValidateArtifacts(artifacts, "$.Artifacts", validator);
         }
     }
 
     private static void ValidateProvider(
         JsonElement provider,
         string path,
-        List<SchemaValidationIssue> issues)
+        ContractValidator validator)
     {
-        if (!RequireObject(provider, path, issues))
+        if (!validator.Object(provider, path))
         {
             return;
         }
-
-        RequireNonEmptyString(provider, "ProviderId", path, issues);
-        RequireNonEmptyString(provider, "DisplayName", path, issues);
-        RequireEnum(provider, "Status", path, ProviderStatuses, issues);
-        RequireDateTime(provider, "StartedAtUtc", path, issues);
-        RequireDateTime(provider, "FinishedAtUtc", path, issues);
-        RequireNonNegativeInteger(provider, "ArtifactCount", path, issues);
-        RequireStringArray(provider, "Warnings", path, issues);
-        RequireStringArray(provider, "Errors", path, issues);
-        RequireBoolean(provider, "RequiresAdministrator", path, issues);
-        if (RequireArray(provider, "Artifacts", path, issues, out JsonElement artifacts))
+        validator.NonEmptyString(provider, "ProviderId", path);
+        validator.NonEmptyString(provider, "DisplayName", path);
+        validator.Enum(provider, "Status", path, ProviderStatuses);
+        validator.DateTime(provider, "StartedAtUtc", path);
+        validator.DateTime(provider, "FinishedAtUtc", path);
+        validator.NonNegativeInteger(provider, "ArtifactCount", path);
+        validator.StringArray(provider, "Warnings", path);
+        validator.StringArray(provider, "Errors", path);
+        validator.Boolean(provider, "RequiresAdministrator", path);
+        if (validator.Array(provider, "Artifacts", path, out JsonElement artifacts))
         {
-            ValidateArtifacts(artifacts, path + ".Artifacts", issues);
+            ValidateArtifacts(artifacts, path + ".Artifacts", validator);
         }
     }
 
     private static void ValidateArtifacts(
         JsonElement artifacts,
         string path,
-        List<SchemaValidationIssue> issues)
+        ContractValidator validator)
     {
         int index = 0;
         foreach (JsonElement artifact in artifacts.EnumerateArray())
         {
             string itemPath = $"{path}[{index}]";
-            if (RequireObject(artifact, itemPath, issues))
+            if (validator.Object(artifact, itemPath))
             {
-                RequireNonEmptyString(artifact, "ProviderId", itemPath, issues);
-                RequireNonEmptyString(artifact, "ArtifactType", itemPath, issues);
-                RequireNonEmptyString(artifact, "Identity", itemPath, issues);
-                RequireNonEmptyString(artifact, "DisplayName", itemPath, issues);
-                RequirePropertyKind(artifact, "Properties", JsonValueKind.Object, itemPath, issues);
-                RequireStringArray(artifact, "Tags", itemPath, issues);
+                validator.NonEmptyString(artifact, "ProviderId", itemPath);
+                validator.NonEmptyString(artifact, "ArtifactType", itemPath);
+                validator.NonEmptyString(artifact, "Identity", itemPath);
+                validator.NonEmptyString(artifact, "DisplayName", itemPath);
+                validator.Property(artifact, "Properties", JsonValueKind.Object, itemPath, out _);
+                validator.StringArray(artifact, "Tags", itemPath);
             }
             index++;
         }
@@ -308,65 +295,64 @@ public sealed class SchemaContractService
 
     private static void ValidateComparisonReport(
         JsonElement root,
-        List<SchemaValidationIssue> issues)
+        ContractValidator validator)
     {
-        if (!RequireObject(root, "$", issues))
+        if (!validator.Object(root, "$"))
         {
             return;
         }
+        validator.ExactString(root, "format", "SysDiff Comparison Report", "$");
+        validator.Integer(root, "formatVersion", "$", expected: 1);
+        validator.Integer(root, "schemaVersion", "$", expected: 1);
+        validator.SemVer(root, "sysDiffVersion", "$");
+        validator.DateTime(root, "generatedAtUtc", "$");
 
-        RequireExactString(root, "format", "SysDiff Comparison Report", "$", issues);
-        RequireInteger(root, "formatVersion", "$", issues, expected: 1);
-        RequireInteger(root, "schemaVersion", "$", issues, expected: 1);
-        RequireVersionString(root, "sysDiffVersion", "$", issues);
-        RequireDateTime(root, "generatedAtUtc", "$", issues);
-
-        if (RequirePropertyKind(root, "before", JsonValueKind.Object, "$", issues, out JsonElement before))
+        if (validator.Property(root, "before", JsonValueKind.Object, "$", out JsonElement before))
         {
-            ValidateSnapshotSummary(before, "$.before", issues);
+            ValidateSnapshotSummary(before, "$.before", validator);
         }
-        if (RequirePropertyKind(root, "after", JsonValueKind.Object, "$", issues, out JsonElement after))
+        if (validator.Property(root, "after", JsonValueKind.Object, "$", out JsonElement after))
         {
-            ValidateSnapshotSummary(after, "$.after", issues);
+            ValidateSnapshotSummary(after, "$.after", validator);
         }
-        if (RequirePropertyKind(root, "comparison", JsonValueKind.Object, "$", issues, out JsonElement comparison))
+        if (validator.Property(root, "comparison", JsonValueKind.Object, "$", out JsonElement comparison))
         {
-            ValidateComparison(comparison, "$.comparison", issues);
+            ValidateComparison(comparison, "$.comparison", validator);
         }
     }
 
     private static void ValidateSnapshotSummary(
         JsonElement summary,
         string path,
-        List<SchemaValidationIssue> issues)
+        ContractValidator validator)
     {
-        RequireGuid(summary, "id", path, issues);
-        RequireNonEmptyString(summary, "name", path, issues);
-        RequireDateTime(summary, "createdAtUtc", path, issues);
-        RequireNonEmptyString(summary, "profileName", path, issues);
-        RequireEnum(summary, "status", path, SnapshotStatuses, issues);
+        validator.Guid(summary, "id", path);
+        validator.NonEmptyString(summary, "name", path);
+        validator.DateTime(summary, "createdAtUtc", path);
+        validator.NonEmptyString(summary, "profileName", path);
+        validator.Enum(summary, "status", path, SnapshotStatuses);
     }
 
     private static void ValidateComparison(
         JsonElement comparison,
         string path,
-        List<SchemaValidationIssue> issues)
+        ContractValidator validator)
     {
-        RequireGuid(comparison, "id", path, issues);
-        RequireGuid(comparison, "beforeSnapshotId", path, issues);
-        RequireGuid(comparison, "afterSnapshotId", path, issues);
-        RequireDateTime(comparison, "createdAtUtc", path, issues);
-        RequireEnum(comparison, "noiseMode", path, NoiseModes, issues);
-        RequireBoolean(comparison, "crossMachine", path, issues);
-        RequireStringArray(comparison, "warnings", path, issues);
-        RequireNonNegativeInteger(comparison, "hiddenAsNoise", path, issues);
+        validator.Guid(comparison, "id", path);
+        validator.Guid(comparison, "beforeSnapshotId", path);
+        validator.Guid(comparison, "afterSnapshotId", path);
+        validator.DateTime(comparison, "createdAtUtc", path);
+        validator.Enum(comparison, "noiseMode", path, NoiseModes);
+        validator.Boolean(comparison, "crossMachine", path);
+        validator.StringArray(comparison, "warnings", path);
+        validator.NonNegativeInteger(comparison, "hiddenAsNoise", path);
 
-        if (RequireArray(comparison, "changes", path, issues, out JsonElement changes))
+        if (validator.Array(comparison, "changes", path, out JsonElement changes))
         {
             int index = 0;
             foreach (JsonElement change in changes.EnumerateArray())
             {
-                ValidateChange(change, $"{path}.changes[{index}]", issues);
+                ValidateChange(change, $"{path}.changes[{index}]", validator);
                 index++;
             }
         }
@@ -375,52 +361,51 @@ public sealed class SchemaContractService
     private static void ValidateChange(
         JsonElement change,
         string path,
-        List<SchemaValidationIssue> issues)
+        ContractValidator validator)
     {
-        if (!RequireObject(change, path, issues))
+        if (!validator.Object(change, path))
         {
             return;
         }
-        RequireGuid(change, "id", path, issues);
-        RequireEnum(change, "changeType", path, ChangeTypes, issues);
-        RequireNonEmptyString(change, "providerId", path, issues);
-        RequireNonEmptyString(change, "artifactType", path, issues);
-        RequireNonEmptyString(change, "identity", path, issues);
-        RequireNonEmptyString(change, "displayName", path, issues);
-        RequirePropertyKind(change, "changedProperties", JsonValueKind.Array, path, issues);
-        RequireEnum(change, "severity", path, Severities, issues);
-        RequirePropertyKind(change, "explanation", JsonValueKind.String, path, issues);
-        RequirePropertyKind(change, "whyThisMatters", JsonValueKind.String, path, issues);
-        RequireStringArray(change, "tags", path, issues);
-        RequireNumber(change, "confidence", path, issues, minimum: 0, maximum: 1);
-        RequireBoolean(change, "isNoise", path, issues);
+        validator.Guid(change, "id", path);
+        validator.Enum(change, "changeType", path, ChangeTypes);
+        validator.NonEmptyString(change, "providerId", path);
+        validator.NonEmptyString(change, "artifactType", path);
+        validator.NonEmptyString(change, "identity", path);
+        validator.NonEmptyString(change, "displayName", path);
+        validator.Property(change, "changedProperties", JsonValueKind.Array, path, out _);
+        validator.Enum(change, "severity", path, Severities);
+        validator.Property(change, "explanation", JsonValueKind.String, path, out _);
+        validator.Property(change, "whyThisMatters", JsonValueKind.String, path, out _);
+        validator.StringArray(change, "tags", path);
+        validator.Number(change, "confidence", path, minimum: 0, maximum: 1);
+        validator.Boolean(change, "isNoise", path);
     }
 
     private static void ValidateBundleManifest(
         JsonElement root,
-        List<SchemaValidationIssue> issues)
+        ContractValidator validator)
     {
-        if (!RequireObject(root, "$", issues))
+        if (!validator.Object(root, "$"))
         {
             return;
         }
+        validator.ExactString(root, "format", "SysDiff Investigation Bundle", "$");
+        validator.Integer(root, "formatVersion", "$", expected: 1);
+        validator.Integer(root, "schemaVersion", "$", expected: 1);
+        validator.SemVer(root, "sysDiffVersion", "$");
+        validator.DateTime(root, "createdAtUtc", "$");
+        validator.Guid(root, "comparisonId", "$");
+        validator.Guid(root, "beforeSnapshotId", "$");
+        validator.Guid(root, "afterSnapshotId", "$");
+        validator.Boolean(root, "crossMachine", "$");
+        validator.StringArray(root, "warnings", "$");
 
-        RequireExactString(root, "format", "SysDiff Investigation Bundle", "$", issues);
-        RequireInteger(root, "formatVersion", "$", issues, expected: 1);
-        RequireInteger(root, "schemaVersion", "$", issues, expected: 1);
-        RequireVersionString(root, "sysDiffVersion", "$", issues);
-        RequireDateTime(root, "createdAtUtc", "$", issues);
-        RequireGuid(root, "comparisonId", "$", issues);
-        RequireGuid(root, "beforeSnapshotId", "$", issues);
-        RequireGuid(root, "afterSnapshotId", "$", issues);
-        RequireBoolean(root, "crossMachine", "$", issues);
-        RequireStringArray(root, "warnings", "$", issues);
-
-        if (RequirePropertyKind(root, "privacy", JsonValueKind.Object, "$", issues, out JsonElement privacy))
+        if (validator.Property(root, "privacy", JsonValueKind.Object, "$", out JsonElement privacy))
         {
-            RequireBoolean(privacy, "userProfilePathsRedacted", "$.privacy", issues);
-            RequireBoolean(privacy, "privateKeysIncluded", "$.privacy", issues);
-            RequireBoolean(privacy, "rawLogsIncluded", "$.privacy", issues);
+            validator.Boolean(privacy, "userProfilePathsRedacted", "$.privacy");
+            validator.Boolean(privacy, "privateKeysIncluded", "$.privacy");
+            validator.Boolean(privacy, "rawLogsIncluded", "$.privacy");
         }
     }
 
@@ -434,260 +419,6 @@ public sealed class SchemaContractService
             return null;
         }
         return version;
-    }
-
-    private static bool RequireObject(
-        JsonElement value,
-        string path,
-        List<SchemaValidationIssue> issues)
-    {
-        if (value.ValueKind == JsonValueKind.Object)
-        {
-            return true;
-        }
-        AddIssue(issues, path, "type", "Ожидался JSON object.");
-        return false;
-    }
-
-    private static bool RequirePropertyKind(
-        JsonElement parent,
-        string name,
-        JsonValueKind kind,
-        string path,
-        List<SchemaValidationIssue> issues) =>
-        RequirePropertyKind(parent, name, kind, path, issues, out _);
-
-    private static bool RequirePropertyKind(
-        JsonElement parent,
-        string name,
-        JsonValueKind kind,
-        string path,
-        List<SchemaValidationIssue> issues,
-        out JsonElement value)
-    {
-        if (!parent.TryGetProperty(name, out value))
-        {
-            AddIssue(issues, path + "." + name, "required", "Обязательное поле отсутствует.");
-            return false;
-        }
-        if (value.ValueKind != kind)
-        {
-            AddIssue(
-                issues,
-                path + "." + name,
-                "type",
-                $"Ожидался тип {kind}, получен {value.ValueKind}.");
-            return false;
-        }
-        return true;
-    }
-
-    private static bool RequireArray(
-        JsonElement parent,
-        string name,
-        string path,
-        List<SchemaValidationIssue> issues,
-        out JsonElement value) =>
-        RequirePropertyKind(parent, name, JsonValueKind.Array, path, issues, out value);
-
-    private static void RequireNonEmptyString(
-        JsonElement parent,
-        string name,
-        string path,
-        List<SchemaValidationIssue> issues)
-    {
-        if (RequirePropertyKind(parent, name, JsonValueKind.String, path, issues, out JsonElement value)
-            && string.IsNullOrWhiteSpace(value.GetString()))
-        {
-            AddIssue(issues, path + "." + name, "min_length", "Строка не может быть пустой.");
-        }
-    }
-
-    private static void RequireExactString(
-        JsonElement parent,
-        string name,
-        string expected,
-        string path,
-        List<SchemaValidationIssue> issues)
-    {
-        if (RequirePropertyKind(parent, name, JsonValueKind.String, path, issues, out JsonElement value)
-            && !string.Equals(value.GetString(), expected, StringComparison.Ordinal))
-        {
-            AddIssue(
-                issues,
-                path + "." + name,
-                "const",
-                $"Ожидалось значение '{expected}'.");
-        }
-    }
-
-    private static void RequireGuid(
-        JsonElement parent,
-        string name,
-        string path,
-        List<SchemaValidationIssue> issues)
-    {
-        if (RequirePropertyKind(parent, name, JsonValueKind.String, path, issues, out JsonElement value)
-            && !Guid.TryParse(value.GetString(), out _))
-        {
-            AddIssue(issues, path + "." + name, "format", "Ожидался UUID.");
-        }
-    }
-
-    private static void RequireDateTime(
-        JsonElement parent,
-        string name,
-        string path,
-        List<SchemaValidationIssue> issues)
-    {
-        if (RequirePropertyKind(parent, name, JsonValueKind.String, path, issues, out JsonElement value)
-            && !DateTimeOffset.TryParse(
-                value.GetString(),
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.RoundtripKind,
-                out _))
-        {
-            AddIssue(issues, path + "." + name, "format", "Ожидалась дата RFC 3339.");
-        }
-    }
-
-    private static void RequireVersionString(
-        JsonElement parent,
-        string name,
-        string path,
-        List<SchemaValidationIssue> issues)
-    {
-        if (RequirePropertyKind(parent, name, JsonValueKind.String, path, issues, out JsonElement value)
-            && !Regex.IsMatch(
-                value.GetString() ?? string.Empty,
-                "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:[-+][0-9A-Za-z.-]+)?$",
-                RegexOptions.CultureInvariant))
-        {
-            AddIssue(issues, path + "." + name, "semver", "Ожидалась версия SemVer X.Y.Z.");
-        }
-    }
-
-    private static void RequireInteger(
-        JsonElement parent,
-        string name,
-        string path,
-        List<SchemaValidationIssue> issues,
-        int expected)
-    {
-        if (!RequirePropertyKind(parent, name, JsonValueKind.Number, path, issues, out JsonElement value))
-        {
-            return;
-        }
-        if (!value.TryGetInt32(out int parsed))
-        {
-            AddIssue(issues, path + "." + name, "integer", "Ожидалось целое число.");
-        }
-        else if (parsed != expected)
-        {
-            AddIssue(
-                issues,
-                path + "." + name,
-                "const",
-                $"Поддерживается только schema version {expected}.");
-        }
-    }
-
-    private static void RequireNonNegativeInteger(
-        JsonElement parent,
-        string name,
-        string path,
-        List<SchemaValidationIssue> issues)
-    {
-        if (!RequirePropertyKind(parent, name, JsonValueKind.Number, path, issues, out JsonElement value))
-        {
-            return;
-        }
-        if (!value.TryGetInt32(out int parsed) || parsed < 0)
-        {
-            AddIssue(issues, path + "." + name, "minimum", "Ожидалось целое число >= 0.");
-        }
-    }
-
-    private static void RequireNumber(
-        JsonElement parent,
-        string name,
-        string path,
-        List<SchemaValidationIssue> issues,
-        double minimum,
-        double maximum)
-    {
-        if (!RequirePropertyKind(parent, name, JsonValueKind.Number, path, issues, out JsonElement value))
-        {
-            return;
-        }
-        if (!value.TryGetDouble(out double parsed) || parsed < minimum || parsed > maximum)
-        {
-            AddIssue(
-                issues,
-                path + "." + name,
-                "range",
-                $"Ожидалось число в диапазоне {minimum}..{maximum}.");
-        }
-    }
-
-    private static void RequireBoolean(
-        JsonElement parent,
-        string name,
-        string path,
-        List<SchemaValidationIssue> issues)
-    {
-        if (!parent.TryGetProperty(name, out JsonElement value))
-        {
-            AddIssue(issues, path + "." + name, "required", "Обязательное поле отсутствует.");
-            return;
-        }
-        if (value.ValueKind is not JsonValueKind.True and not JsonValueKind.False)
-        {
-            AddIssue(issues, path + "." + name, "type", "Ожидался boolean.");
-        }
-    }
-
-    private static void RequireEnum(
-        JsonElement parent,
-        string name,
-        string path,
-        HashSet<string> allowed,
-        List<SchemaValidationIssue> issues)
-    {
-        if (RequirePropertyKind(parent, name, JsonValueKind.String, path, issues, out JsonElement value)
-            && !allowed.Contains(value.GetString() ?? string.Empty))
-        {
-            AddIssue(
-                issues,
-                path + "." + name,
-                "enum",
-                $"Недопустимое значение. Разрешено: {string.Join(", ", allowed)}.");
-        }
-    }
-
-    private static void RequireStringArray(
-        JsonElement parent,
-        string name,
-        string path,
-        List<SchemaValidationIssue> issues)
-    {
-        if (!RequireArray(parent, name, path, issues, out JsonElement array))
-        {
-            return;
-        }
-        int index = 0;
-        foreach (JsonElement item in array.EnumerateArray())
-        {
-            if (item.ValueKind != JsonValueKind.String)
-            {
-                AddIssue(
-                    issues,
-                    $"{path}.{name}[{index}]",
-                    "type",
-                    "Ожидалась строка.");
-            }
-            index++;
-        }
     }
 
     private static SchemaValidationResult Invalid(
@@ -712,15 +443,225 @@ public sealed class SchemaContractService
             ]
         };
 
-    private static void AddIssue(
-        List<SchemaValidationIssue> issues,
-        string path,
-        string code,
-        string message) =>
-        issues.Add(new SchemaValidationIssue
+    private sealed class ContractValidator
+    {
+        private readonly List<SchemaValidationIssue> _issues;
+
+        public ContractValidator(List<SchemaValidationIssue> issues)
         {
-            Path = path,
-            Code = code,
-            Message = message
-        });
+            _issues = issues;
+        }
+
+        public bool Object(JsonElement value, string path)
+        {
+            if (value.ValueKind == JsonValueKind.Object)
+            {
+                return true;
+            }
+            Add(path, "type", "Ожидался JSON object.");
+            return false;
+        }
+
+        public bool Property(
+            JsonElement parent,
+            string name,
+            JsonValueKind kind,
+            string path,
+            out JsonElement value)
+        {
+            if (!parent.TryGetProperty(name, out value))
+            {
+                Add(path + "." + name, "required", "Обязательное поле отсутствует.");
+                return false;
+            }
+            if (value.ValueKind != kind)
+            {
+                Add(
+                    path + "." + name,
+                    "type",
+                    $"Ожидался тип {kind}, получен {value.ValueKind}.");
+                return false;
+            }
+            return true;
+        }
+
+        public bool Array(
+            JsonElement parent,
+            string name,
+            string path,
+            out JsonElement value) =>
+            Property(parent, name, JsonValueKind.Array, path, out value);
+
+        public void NonEmptyString(JsonElement parent, string name, string path)
+        {
+            if (Property(parent, name, JsonValueKind.String, path, out JsonElement value)
+                && string.IsNullOrWhiteSpace(value.GetString()))
+            {
+                Add(path + "." + name, "min_length", "Строка не может быть пустой.");
+            }
+        }
+
+        public void ExactString(
+            JsonElement parent,
+            string name,
+            string expected,
+            string path)
+        {
+            if (Property(parent, name, JsonValueKind.String, path, out JsonElement value)
+                && !string.Equals(value.GetString(), expected, StringComparison.Ordinal))
+            {
+                Add(path + "." + name, "const", $"Ожидалось значение '{expected}'.");
+            }
+        }
+
+        public void Guid(JsonElement parent, string name, string path)
+        {
+            if (Property(parent, name, JsonValueKind.String, path, out JsonElement value)
+                && !System.Guid.TryParse(value.GetString(), out _))
+            {
+                Add(path + "." + name, "format", "Ожидался UUID.");
+            }
+        }
+
+        public void DateTime(JsonElement parent, string name, string path)
+        {
+            if (Property(parent, name, JsonValueKind.String, path, out JsonElement value)
+                && !DateTimeOffset.TryParse(
+                    value.GetString(),
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.RoundtripKind,
+                    out _))
+            {
+                Add(path + "." + name, "format", "Ожидалась дата RFC 3339.");
+            }
+        }
+
+        public void SemVer(JsonElement parent, string name, string path)
+        {
+            if (Property(parent, name, JsonValueKind.String, path, out JsonElement value)
+                && !Regex.IsMatch(
+                    value.GetString() ?? string.Empty,
+                    SemVerPattern,
+                    RegexOptions.CultureInvariant))
+            {
+                Add(path + "." + name, "semver", "Ожидалась версия SemVer X.Y.Z.");
+            }
+        }
+
+        public void Integer(
+            JsonElement parent,
+            string name,
+            string path,
+            int expected)
+        {
+            if (!Property(parent, name, JsonValueKind.Number, path, out JsonElement value))
+            {
+                return;
+            }
+            if (!value.TryGetInt32(out int parsed))
+            {
+                Add(path + "." + name, "integer", "Ожидалось целое число.");
+            }
+            else if (parsed != expected)
+            {
+                Add(
+                    path + "." + name,
+                    "const",
+                    $"Поддерживается только schema version {expected}.");
+            }
+        }
+
+        public void NonNegativeInteger(JsonElement parent, string name, string path)
+        {
+            if (!Property(parent, name, JsonValueKind.Number, path, out JsonElement value))
+            {
+                return;
+            }
+            if (!value.TryGetInt32(out int parsed) || parsed < 0)
+            {
+                Add(path + "." + name, "minimum", "Ожидалось целое число >= 0.");
+            }
+        }
+
+        public void Number(
+            JsonElement parent,
+            string name,
+            string path,
+            double minimum,
+            double maximum)
+        {
+            if (!Property(parent, name, JsonValueKind.Number, path, out JsonElement value))
+            {
+                return;
+            }
+            if (!value.TryGetDouble(out double parsed) || parsed < minimum || parsed > maximum)
+            {
+                Add(
+                    path + "." + name,
+                    "range",
+                    $"Ожидалось число в диапазоне {minimum}..{maximum}.");
+            }
+        }
+
+        public void Boolean(JsonElement parent, string name, string path)
+        {
+            if (!parent.TryGetProperty(name, out JsonElement value))
+            {
+                Add(path + "." + name, "required", "Обязательное поле отсутствует.");
+                return;
+            }
+            if (value.ValueKind is not JsonValueKind.True and not JsonValueKind.False)
+            {
+                Add(path + "." + name, "type", "Ожидался boolean.");
+            }
+        }
+
+        public void Enum(
+            JsonElement parent,
+            string name,
+            string path,
+            HashSet<string> allowed)
+        {
+            if (Property(parent, name, JsonValueKind.String, path, out JsonElement value)
+                && !allowed.Contains(value.GetString() ?? string.Empty))
+            {
+                Add(
+                    path + "." + name,
+                    "enum",
+                    $"Недопустимое значение. Разрешено: {string.Join(", ", allowed)}.");
+            }
+        }
+
+        public void StringArray(JsonElement parent, string name, string path)
+        {
+            if (!Array(parent, name, path, out JsonElement array))
+            {
+                return;
+            }
+            int index = 0;
+            foreach (JsonElement item in array.EnumerateArray())
+            {
+                if (item.ValueKind != JsonValueKind.String)
+                {
+                    Add($"{path}.{name}[{index}]", "type", "Ожидалась строка.");
+                }
+                index++;
+            }
+        }
+
+        private void Add(string path, string code, string message) =>
+            _issues.Add(new SchemaValidationIssue
+            {
+                Path = path,
+                Code = code,
+                Message = message
+            });
+    }
+
+    private static readonly JsonDocumentOptions JsonDocumentOptions = new()
+    {
+        AllowTrailingCommas = false,
+        CommentHandling = JsonCommentHandling.Disallow,
+        MaxDepth = 128
+    };
 }
