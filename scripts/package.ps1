@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = "0.8.0",
+    [string]$Version = "0.9.0",
     [string]$Runtime = "win-x64"
 )
 
@@ -24,7 +24,7 @@ if ($Version -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') {
     throw "Версия должна быть стабильной SemVer X.Y.Z: $Version"
 }
 if ($Runtime -ne "win-x64") {
-    throw "Официальный release channel 0.8 поддерживает только win-x64"
+    throw "Официальный release channel 0.9 поддерживает только win-x64"
 }
 
 Remove-Item $publish, $packageRoot, $zipPath, $checksumPath, $manifestPath `
@@ -56,6 +56,7 @@ try {
     Copy-Item .\README.md (Join-Path $packageRoot "README.txt")
     Copy-Item .\docs\UPDATES.md (Join-Path $packageRoot "UPDATES.txt")
     Copy-Item .\docs\COMPATIBILITY.md (Join-Path $packageRoot "COMPATIBILITY.txt")
+    Copy-Item .\docs\MIGRATIONS.md (Join-Path $packageRoot "MIGRATIONS.txt")
     Copy-Item .\samples\profiles (Join-Path $packageRoot "profiles") -Recurse
     New-Item (Join-Path $packageRoot "portable.mode") -ItemType File | Out-Null
 
