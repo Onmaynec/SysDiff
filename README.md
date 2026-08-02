@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="assets/logo.svg" alt="SysDiff — расследование изменений Windows" width="720">
-
 # SysDiff
 
 **Cyber-terminal утилита для снимков, сравнения, расследования дрейфа и безопасного управления данными Windows.**
