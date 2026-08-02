@@ -2,7 +2,7 @@ namespace SysDiff.Domain;
 
 public static class SysDiffProduct
 {
-    public const string Version = "0.10.0";
+    public const string Version = "0.11.0";
 
     public const int PublicSchemaVersion = 1;
 
