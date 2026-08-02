@@ -65,6 +65,7 @@ internal static class Program
         services.AddSingleton<HtmlReportRenderer>();
 
         services.AddSingleton<SchemaContractService>();
+        services.AddSingleton<PortableUpgradeService>();
         services.AddSingleton(_ => new DatabaseMigrationService(
             paths.DatabasePath,
             Path.Combine(paths.DataDirectory, "backups", "migrations")));
@@ -107,6 +108,7 @@ internal static class Program
         services.AddSingleton<V8CommandRouter>();
         services.AddSingleton<V9CommandRouter>();
         services.AddSingleton<V10CommandRouter>();
+        services.AddSingleton<V11CommandRouter>();
         services.AddSingleton<CommandApp>();
 
         await using ServiceProvider provider = services.BuildServiceProvider();
@@ -153,7 +155,7 @@ internal static class Program
             }
 
             CommandApp fallback = provider.GetRequiredService<CommandApp>();
-            return await provider.GetRequiredService<V10CommandRouter>()
+            return await provider.GetRequiredService<V11CommandRouter>()
                 .RunAsync(cleanArgs, fallback, cancellation.Token);
         }
         catch (OperationCanceledException)
