@@ -58,6 +58,7 @@ internal static class Program
         services.AddSingleton<ISeverityEngine, SeverityEngine>();
         services.AddSingleton<INoiseFilterEngine, NoiseFilterEngine>();
         services.AddSingleton<ComparisonEngine>();
+        services.AddSingleton<ScaleLabService>();
         services.AddSingleton<DriftRiskEngine>();
         services.AddSingleton<ConsoleReportRenderer>();
         services.AddSingleton<JsonReportRenderer>();
@@ -109,6 +110,7 @@ internal static class Program
         services.AddSingleton<V9CommandRouter>();
         services.AddSingleton<V10CommandRouter>();
         services.AddSingleton<V11CommandRouter>();
+        services.AddSingleton<V12CommandRouter>();
         services.AddSingleton<CommandApp>();
 
         await using ServiceProvider provider = services.BuildServiceProvider();
@@ -155,7 +157,7 @@ internal static class Program
             }
 
             CommandApp fallback = provider.GetRequiredService<CommandApp>();
-            return await provider.GetRequiredService<V11CommandRouter>()
+            return await provider.GetRequiredService<V12CommandRouter>()
                 .RunAsync(cleanArgs, fallback, cancellation.Token);
         }
         catch (OperationCanceledException)
