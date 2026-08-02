@@ -1,42 +1,44 @@
 # 🔄 Обновления SysDiff
 
-SysDiff 0.9.0 использует официальный **stable release channel** GitHub. Проверка обновлений выполняется по `release-manifest.json`, опубликованному вместе с каждым GitHub Release.
+SysDiff 0.10.0 использует официальный **stable release channel** GitHub. Проверка выполняется по `release-manifest.json`, опубликованному вместе с release assets.
 
 ## Быстрый старт
 
 ```powershell
 sysdiff update check
+sysdiff update status --json
 sysdiff update download
 sysdiff update install --yes --restart
 ```
 
-Проверить сохранённое состояние без сетевого запроса:
+## Официальный manifest
 
-```powershell
-sysdiff update status
-sysdiff update status --json
-```
-
-## Что считается официальным обновлением
-
-Updater принимает manifest только при выполнении всех условий:
+Updater принимает manifest только когда:
 
 - `product` равен `SysDiff`;
-- канал равен `stable`;
-- версия является стабильной SemVer `X.Y.Z`;
-- runtime равен `win-x64`;
-- tag имеет вид `vX.Y.Z`;
-- asset называется `SysDiff-X.Y.Z-win-x64.zip`;
-- HTTPS URL указывает на `github.com/Onmaynec/SysDiff/releases/download/...`;
-- размер не превышает установленный лимит;
-- SHA-256 содержит 64 hex-символа;
-- `minimumUpdaterVersion` поддерживается текущей сборкой.
+- channel — `stable`;
+- version — stable SemVer `X.Y.Z`;
+- runtime — `win-x64`;
+- tag совпадает с `vX.Y.Z`;
+- asset — `SysDiff-X.Y.Z-win-x64.zip`;
+- URL указывает на официальный GitHub release path;
+- size и SHA-256 корректны;
+- `minimumUpdaterVersion` поддерживается.
 
-Manifest с другим host, runtime, channel, tag или asset отклоняется до загрузки.
+Другой host, runtime, channel, tag или asset отклоняется до установки.
 
-## Автоматическая проверка
+## Настройки
 
-По умолчанию:
+```powershell
+sysdiff update settings
+sysdiff update settings --auto-check false
+sysdiff update settings --auto-check true --interval-hours 12
+sysdiff update settings --auto-download true
+sysdiff update settings --ignore 0.10.0
+sysdiff update settings --ignore none
+```
+
+Defaults:
 
 ```text
 channel        stable
@@ -46,125 +48,85 @@ interval       24 часа
 autoInstall    никогда
 ```
 
-Настройки:
+Auto-download не устанавливает update. Install всегда требует `--yes`.
 
-```powershell
-sysdiff update settings
-sysdiff update settings --auto-check false
-sysdiff update settings --auto-check true --interval-hours 12
-sysdiff update settings --auto-download true
-sysdiff update settings --ignore 0.9.0
-sysdiff update settings --ignore none
-```
+## Проверка ZIP
 
-Автоматическая проверка:
+Перед staging проверяются:
 
-- запускается только в обычном интерактивном режиме;
-- не выполняется в CI;
-- ограничена коротким timeout;
-- не блокирует открытие Cyber Console при недоступной сети;
-- не повторяется чаще настроенного интервала.
-
-`autoDownload=true` разрешает загрузить и проверить архив, но **не устанавливает** его. Установка всегда требует явного подтверждения.
-
-## Update Center
-
-В Cyber Console откройте:
-
-```text
-[09] System Node
-       └─ Update Center
-```
-
-Доступные действия:
-
-- проверить stable channel;
-- скачать и проверить release ZIP;
-- установить уже загруженное обновление;
-- включить или отключить auto-check;
-- включить или отключить auto-download;
-- изменить интервал;
-- очистить update cache.
-
-## Проверка целостности
-
-Перед распаковкой SysDiff проверяет:
-
-1. HTTP Content-Length, если он доступен;
-2. фактическое количество загруженных байт;
-3. SHA-256 ZIP-архива;
-4. безопасные пути ZIP entries;
-5. общий размер распакованных данных;
+1. HTTP Content-Length;
+2. фактический размер;
+3. SHA-256;
+4. безопасные ZIP paths;
+5. unpacked size limit;
 6. наличие `sysdiff.exe`;
-7. вывод staged executable `SysDiff <version>`.
-
-Несовпадение SHA-256 удаляет загруженный файл. Непроверенный EXE не передаётся installer helper.
+7. staged `SysDiff <version>` output.
 
 ## Безопасная установка
-
-Self-update поддерживается только при запуске опубликованного `sysdiff.exe`.
-
-При запуске через:
-
-```powershell
-dotnet run --project .\src\SysDiff.Cli
-```
-
-команды проверки и загрузки доступны, но установка отклоняется. Это защищает исходный проект и `dotnet` host от случайной замены.
-
-Установка выполняется так:
 
 ```text
 verified staging
       ↓
-launch helper with ArgumentList
+helper with structured ArgumentList
       ↓
-wait for current SysDiff PID
+wait current PID
       ↓
-backup current sysdiff.exe
+backup current executable
       ↓
-copy pending executable
+replace
       ↓
-atomic replace
-      ↓
-run --version verification
-      ├─ OK    → remove backup, optional restart
-      └─ FAIL  → restore backup
+post-install --version verification
+      ├─ OK    → cleanup / optional restart
+      └─ FAIL  → rollback executable
 ```
 
-Пути передаются helper как отдельные параметры. `Invoke-Expression`, построение командной строки из captured data и запуск содержимого снимков не используются.
+Self-update доступен опубликованному `sysdiff.exe`. При `dotnet run` check/download разрешены, install отклоняется.
 
 ## Данные пользователя
 
-Updater не удаляет и не заменяет:
+Updater не удаляет:
 
 - `sysdiff.db`;
-- snapshots;
-- investigation cases;
-- reports;
-- logs;
-- пользовательские profiles;
+- snapshots и comparisons;
+- cases и timeline;
+- reports/logs/profiles;
 - update settings;
-- migration backups.
+- migration backups;
+- public schemas и fixtures из нового package.
 
-Обновление EXE и миграция базы являются разными операциями. После установки новой версии existing database не изменяется автоматически: сначала используйте `sysdiff migration plan`, затем при необходимости `migration apply --yes`.
-
-Очищается только локальный update cache при явной команде:
+Обновление EXE не применяет database migrations автоматически. После установки используйте:
 
 ```powershell
-sysdiff update clear-cache
+sysdiff migration status
+sysdiff migration plan
+```
+
+Schema Contract можно проверить независимо:
+
+```powershell
+sysdiff schema list
+sysdiff schema validate snapshot .\snapshot.json
+```
+
+## Package 0.10
+
+Portable ZIP включает:
+
+```text
+SysDiff-0.10.0-win-x64.zip
+SCHEMA_CONTRACT.txt
+schemas/public/v1/*.schema.json
+schema-fixtures/v1/*.json
+MIGRATIONS.txt
+COMPATIBILITY.txt
+UPDATES.txt
 ```
 
 ## Подписи и provenance
 
-Каждый официальный GitHub Release содержит:
+Official release содержит ZIP, `.sha256`, `release-manifest.json` и GitHub artifact attestations.
 
-- portable ZIP;
-- `.sha256`;
-- `release-manifest.json`;
-- GitHub artifact attestations для ZIP и manifest.
-
-Версия 0.9.0 пока публикуется без Authenticode-сертификата. Это указано явно:
+Версия 0.10.0 пока без Authenticode:
 
 ```json
 {
@@ -172,18 +134,15 @@ sysdiff update clear-cache
 }
 ```
 
-Отсутствие Authenticode не скрывается. SHA-256, официальный GitHub host, tag и provenance проверяют целостность и происхождение release pipeline, но не заменяют будущую code-signing подпись.
+SHA-256 и provenance подтверждают integrity/origin pipeline, но не заменяют code-signing сертификат.
 
-## Полное ручное обновление
+## Ручное обновление
 
-Когда self-update недоступен:
-
-1. откройте страницу GitHub Releases;
-2. скачайте `SysDiff-X.Y.Z-win-x64.zip` и `.sha256`;
-3. проверьте SHA-256;
-4. закройте SysDiff;
-5. распакуйте архив в новый каталог;
-6. перенесите только пользовательские данные, если они находились рядом с portable EXE;
-7. запустите `sysdiff migration status` перед применением database migrations.
+1. скачайте ZIP и `.sha256` из official GitHub Release;
+2. проверьте hash;
+3. закройте SysDiff;
+4. распакуйте в новый каталог;
+5. сохраните пользовательские data directories;
+6. запустите `migration status` и `schema list`.
 
 Не заменяйте работающий EXE напрямую.
