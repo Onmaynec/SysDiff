@@ -12,9 +12,9 @@ public enum CyberStageState
 
 public static class CyberTheme
 {
-    public const string Version = "0.8.0";
+    public const string Version = "0.9.0";
     public const string ProductTitle = "SYSDIFF CYBER CONSOLE";
-    public const string ProductSubtitle = "WINDOWS COMPATIBILITY & DRIFT CONTROL NODE";
+    public const string ProductSubtitle = "WINDOWS MIGRATION & DRIFT CONTROL NODE";
 
     public static ConsoleColor Accent => ConsoleColor.Green;
 
