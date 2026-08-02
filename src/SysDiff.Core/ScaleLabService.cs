@@ -110,6 +110,7 @@ public sealed class ScaleLabService
             }
 
             await writer.FlushAsync(cancellationToken);
+            writer.Dispose();
             AtomicReplace(temporaryPath, fullPath);
         }
         catch
@@ -405,6 +406,7 @@ public sealed class ScaleLabService
             }
 
             await writer.FlushAsync(cancellationToken);
+            writer.Dispose();
             AtomicReplace(temporaryOutput, outputFullPath);
 
             stopwatch.Stop();
