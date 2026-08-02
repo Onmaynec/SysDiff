@@ -7,11 +7,57 @@
 ### Планируется
 
 - стабильная публичная схема данных 1.0;
-- реальные migration handlers для будущих breaking schema changes;
+- migration handlers для будущих breaking schema changes;
 - Authenticode code signing официального EXE;
 - безопасный rollback preview системных изменений;
 - оптимизация больших снимков;
 - полная локализация RU/EN.
+
+## [0.9.0] — 2026-08-02
+
+### Добавлено
+
+- Migration Lab с командами `migration status|plan|history|apply`;
+- отдельный `V9CommandRouter` поверх маршрутизации 0.8;
+- публичные модели migration plan, result, history и run records;
+- additive migration `0.9.0-migration-lab`;
+- таблицы `migration_runs` и `database_metadata`;
+- `PRAGMA user_version = 9` как guard внутренней версии SQLite;
+- SQLite-consistent backup через backup API;
+- exclusive migration lock;
+- JSON-вывод со строковыми enum statuses;
+- отдельная документация `docs/MIGRATIONS.md`;
+- integration tests backup, idempotency, rollback и future-version rejection.
+
+### Изменено
+
+- версия EXE, snapshot metadata, CyberTheme, package и smoke-test обновлена до `0.9.0`;
+- новая пустая база автоматически получает текущий migration ledger без backup;
+- существующая база не мигрируется при обычном запуске;
+- startup отклоняет базу с `user_version` выше поддерживаемого до store initialization;
+- portable package включает `MIGRATIONS.txt`;
+- migration connections изолированы private non-pooled SQLite cache.
+
+### Совместимость
+
+- snapshot/comparison/investigation tables не переписываются;
+- `.sdshot` format/schema остаются `1`;
+- stable public schema 1.0 пока не объявляется;
+- migration history 0.6 признаётся известной;
+- неизвестные migration IDs блокируют изменение базы;
+- старые CLI-команды делегируются через `V9 → V8 → V7 → V6 → V4 → V3`.
+
+### Безопасность
+
+- `migration plan` является read-only dry-run;
+- `migration apply` требует явного `--yes`;
+- backup создаётся и проверяется до первого migration SQL;
+- WAL checkpoint выполняется перед backup;
+- SQL и migration history записываются в одной transaction;
+- ошибка SQL откатывает transaction без partial history;
+- post-commit `quick_check` контролирует целостность;
+- при неуспешной итоговой проверке существующая база восстанавливается из backup;
+- параллельные migrations блокируются lock-файлом.
 
 ## [0.8.0] — 2026-08-01
 
