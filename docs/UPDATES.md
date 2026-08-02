@@ -1,6 +1,6 @@
 # 🔄 Обновления SysDiff
 
-SysDiff 0.11.0 использует официальный **stable release channel** GitHub. Проверка выполняется по `release-manifest.json`, опубликованному вместе с release assets.
+SysDiff 0.12.0 использует официальный **stable release channel** GitHub. Проверка выполняется по `release-manifest.json`, опубликованному вместе с release assets.
 
 ## Быстрый старт
 
@@ -34,7 +34,7 @@ sysdiff update settings
 sysdiff update settings --auto-check false
 sysdiff update settings --auto-check true --interval-hours 12
 sysdiff update settings --auto-download true
-sysdiff update settings --ignore 0.11.0
+sysdiff update settings --ignore 0.12.0
 sysdiff update settings --ignore none
 ```
 
@@ -85,29 +85,38 @@ Updater не удаляет:
 - update settings;
 - migration backups;
 - Legacy Bridge backups;
+- Scale Lab NDJSON datasets и benchmark results;
 - public schemas и fixtures.
 
-Обновление EXE не применяет database или portable migrations автоматически. После установки используйте независимые checks:
+Обновление EXE не применяет database или portable migrations автоматически и не запускает Scale benchmark. После установки используйте независимые checks:
 
 ```powershell
 sysdiff migration status
 sysdiff schema list
 sysdiff legacy matrix
+sysdiff scale matrix
 ```
 
-Legacy portable conversion запускается только явно:
+Legacy conversion запускается только явно:
 
 ```powershell
 sysdiff legacy plan comparison .\old-report.json
 sysdiff legacy convert comparison .\old-report.json --yes
 ```
 
-## Package 0.11
+Scale Lab работает с обычными файлами и не импортирует их автоматически:
+
+```powershell
+sysdiff scale compare .\before.ndjson .\after.ndjson --output .\changes.ndjson
+```
+
+## Package 0.12
 
 Portable ZIP включает:
 
 ```text
-SysDiff-0.11.0-win-x64.zip
+SysDiff-0.12.0-win-x64.zip
+SCALE_LAB.txt
 LEGACY_BRIDGE.txt
 legacy-fixtures/v0.9/*.json
 SCHEMA_CONTRACT.txt
@@ -122,7 +131,7 @@ UPDATES.txt
 
 Official release содержит ZIP, `.sha256`, `release-manifest.json` и GitHub artifact attestations.
 
-Версия 0.11.0 пока без Authenticode:
+Версия 0.12.0 пока без Authenticode:
 
 ```json
 {
@@ -138,7 +147,7 @@ SHA-256 и provenance подтверждают integrity/origin pipeline, но �
 2. проверьте hash;
 3. закройте SysDiff;
 4. распакуйте в новый каталог;
-5. сохраните пользовательские data directories и backups;
-6. запустите `migration status`, `schema list` и при необходимости `legacy plan`.
+5. сохраните пользовательские data directories, backups и Scale Lab datasets;
+6. запустите `migration status`, `schema list`, `legacy matrix` и `scale matrix`.
 
 Не заменяйте работающий EXE напрямую.
