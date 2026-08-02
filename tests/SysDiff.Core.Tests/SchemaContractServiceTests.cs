@@ -96,6 +96,21 @@ public sealed class SchemaContractServiceTests
     }
 
     [Fact]
+    public void SemVerPrereleaseAndBuildMetadata_AreAccepted()
+    {
+        var service = new SchemaContractService();
+        JsonObject root = ReadFixture("snapshot.valid.json").AsObject();
+        root["SysDiffVersion"] = "0.10.0-rc.1+build.5";
+
+        SchemaValidationResult result = service.ValidateJson(
+            SchemaContractKind.Snapshot,
+            root.ToJsonString());
+
+        Assert.True(result.IsValid);
+        Assert.DoesNotContain(result.Issues, value => value.Code == "semver");
+    }
+
+    [Fact]
     public void FutureSchemaVersion_RequiresNewerSysDiff()
     {
         var service = new SchemaContractService();
