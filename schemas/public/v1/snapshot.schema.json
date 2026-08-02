@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.sysdiff.dev/v1/snapshot.schema.json",
+  "title": "SysDiff Snapshot Schema Contract v1",
+  "description": "Stable public contract for snapshot.json inside SysDiff .sdshot archives.",
+  "type": "object",
+  "required": [
+    "Id",
+    "Name",
+    "CreatedAtUtc",
+    "SysDiffVersion",
+    "SchemaVersion",
+    "ProfileName",
+    "Status",
+    "Architecture",
+    "ProviderResults",
+    "Artifacts"
+  ],
+  "properties": {
+    "Id": { "$ref": "#/$defs/uuid" },
+    "Name": { "type": "string", "minLength": 1 },
+    "CreatedAtUtc": { "type": "string", "format": "date-time" },
+    "SysDiffVersion": { "$ref": "#/$defs/semver" },
+    "SchemaVersion": { "const": 1 },
+    "ProfileName": { "type": "string", "minLength": 1 },
+    "Status": { "$ref": "#/$defs/snapshotStatus" },
+    "WindowsEdition": { "type": ["string", "null"] },
+    "WindowsBuild": { "type": ["string", "null"] },
+    "Architecture": { "type": "string", "minLength": 1 },
+    "MachineFingerprint": { "type": ["string", "null"] },
+    "Comment": { "type": ["string", "null"] },
+    "ProviderResults": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/providerResult" }
+    },
+    "Artifacts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact" }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:[-+][0-9A-Za-z.-]+)?$"
+    },
+    "snapshotStatus": {
+      "type": "string",
+      "enum": ["InProgress", "Completed", "Partial", "Failed", "Cancelled", "Corrupted"]
+    },
+    "providerStatus": {
+      "type": "string",
+      "enum": ["Success", "Partial", "Failed", "Skipped", "Cancelled"]
+    },
+    "artifactValue": {
+      "type": "object",
+      "required": ["Type", "Redacted"],
+      "properties": {
+        "Value": { "type": ["string", "null"] },
+        "Type": { "type": "string", "minLength": 1 },
+        "Redacted": { "type": "boolean" },
+        "Hash": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["ProviderId", "ArtifactType", "Identity", "DisplayName", "Properties", "Tags"],
+      "properties": {
+        "ProviderId": { "type": "string", "minLength": 1 },
+        "ArtifactType": { "type": "string", "minLength": 1 },
+        "Identity": { "type": "string", "minLength": 1 },
+        "DisplayName": { "type": "string", "minLength": 1 },
+        "Properties": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/artifactValue" }
+        },
+        "Tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "providerResult": {
+      "type": "object",
+      "required": [
+        "ProviderId",
+        "DisplayName",
+        "Status",
+        "StartedAtUtc",
+        "FinishedAtUtc",
+        "ArtifactCount",
+        "Warnings",
+        "Errors",
+        "Artifacts",
+        "RequiresAdministrator"
+      ],
+      "properties": {
+        "ProviderId": { "type": "string", "minLength": 1 },
+        "DisplayName": { "type": "string", "minLength": 1 },
+        "Status": { "$ref": "#/$defs/providerStatus" },
+        "StartedAtUtc": { "type": "string", "format": "date-time" },
+        "FinishedAtUtc": { "type": "string", "format": "date-time" },
+        "ArtifactCount": { "type": "integer", "minimum": 0 },
+        "Warnings": { "type": "array", "items": { "type": "string" } },
+        "Errors": { "type": "array", "items": { "type": "string" } },
+        "Artifacts": { "type": "array", "items": { "$ref": "#/$defs/artifact" } },
+        "RequiresAdministrator": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "x-sysdiff-contract": {
+    "version": 1,
+    "stability": "stable",
+    "introducedIn": "0.10.0",
+    "additionalPropertiesPolicy": "allowed",
+    "breakingChangePolicy": "requires schema major version"
+  }
+}
