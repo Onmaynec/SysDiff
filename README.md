@@ -2,33 +2,54 @@
 
 # SysDiff
 
-**Cyber-terminal утилита для снимков, сравнения, расследования дрейфа и безопасного управления данными Windows.**
+**Cyber-terminal утилита для снимков Windows, сравнения, расследования дрейфа и безопасного управления переносимыми данными.**
 
 [![Сборка](https://github.com/Onmaynec/SysDiff/actions/workflows/build.yml/badge.svg)](https://github.com/Onmaynec/SysDiff/actions/workflows/build.yml)
 [![Тесты](https://github.com/Onmaynec/SysDiff/actions/workflows/test.yml/badge.svg)](https://github.com/Onmaynec/SysDiff/actions/workflows/test.yml)
 [![Релиз](https://img.shields.io/github/v/release/Onmaynec/SysDiff?display_name=tag&sort=semver)](https://github.com/Onmaynec/SysDiff/releases)
 [![Лицензия](https://img.shields.io/badge/license-MIT-40d9d0.svg)](LICENSE)
-[![Платформа](https://img.shields.io/badge/Windows-10%20%7C%2011-52a8ff.svg)](#-системные-требования)
-[![Версия](https://img.shields.io/badge/version-0.9.0-22c55e.svg)](CHANGELOG.md)
+[![Версия](https://img.shields.io/badge/version-0.10.0-22c55e.svg)](CHANGELOG.md)
 
 </div>
 
 > [!IMPORTANT]
-> **SysDiff не является антивирусом.** Он фиксирует, сравнивает и объясняет системные изменения, но не объявляет объект безопасным или вредоносным.
+> **SysDiff не является антивирусом.** Он фиксирует и объясняет системные изменения, но не объявляет объект безопасным или вредоносным.
 
-## 🗃️ SysDiff 0.9.0 — Migration Lab
+## 📐 SysDiff 0.10.0 — Schema Contract
 
-Версия 0.9.0 добавляет контролируемые миграции локальной SQLite-базы:
+Версия 0.10.0 публикует стабильный публичный **Schema Contract v1**:
 
-- read-only `status` и подробный dry-run `plan`;
-- явное применение только через `migration apply --yes`;
-- SQLite-consistent backup до первого migration SQL;
-- WAL checkpoint и проверка backup через `quick_check`;
-- каждая migration выполняется в transaction;
-- журнал применённых migrations и отдельных запусков;
-- защита от параллельного применения lock-файлом;
-- отказ открывать базу из более новой версии;
-- машинный JSON-вывод для CI и диагностики.
+- JSON Schema Draft 2020-12 для snapshot, comparison report и bundle manifest;
+- embedded schemas внутри приложения;
+- golden fixtures в CI и portable package;
+- обязательные поля, UUID, RFC3339, SemVer, enum и range validation;
+- unknown additive properties разрешены;
+- future schema получает `RequiresNewerSysDiff`;
+- breaking change требует schema major 2 и migration guide.
+
+```powershell
+sysdiff schema list
+sysdiff schema list --json
+sysdiff schema show snapshot
+sysdiff schema validate snapshot .\snapshot.json
+sysdiff schema validate comparison .\report.json --json
+sysdiff schema validate bundle .\manifest.json --json
+```
+
+Подробнее: [docs/SCHEMA_CONTRACT.md](docs/SCHEMA_CONTRACT.md).
+
+## Reader/writer matrix
+
+| Формат | Writer 0.10 | Reader 0.10 | Policy |
+|---|---:|---:|---|
+| `.sdshot` snapshot JSON | schema 1 | schema 1 | additive fields allowed |
+| comparison JSON report | schema 1 | schema 1 | breaking change → major 2 |
+| investigation bundle manifest | schema 1 | schema 1 | future schema rejected |
+| SQLite database | user_version 9 | `0..9` | migration через backup/transaction |
+
+Snapshot contract сохраняет исторический PascalCase `.sdshot`. Comparison report и bundle manifest используют camelCase.
+
+## 🗃️ Migration Lab
 
 ```powershell
 sysdiff migration status
@@ -37,20 +58,11 @@ sysdiff migration history
 sysdiff migration apply --yes
 ```
 
-Для автоматизации:
-
-```powershell
-sysdiff migration plan --json
-sysdiff migration apply --yes --json
-```
-
-Обычный запуск **не мигрирует существующую базу автоматически**. Новая пустая база получает текущий ledger при первом запуске без создания бессмысленного backup.
+`plan` read-only. Existing database изменяется только после `--yes`; перед SQL создаётся и проверяется SQLite-consistent backup. Ошибка откатывает transaction.
 
 Подробнее: [docs/MIGRATIONS.md](docs/MIGRATIONS.md).
 
 ## 🧩 Compatibility Center
-
-Проверка `.sdshot` до импорта остаётся доступной:
 
 ```powershell
 sysdiff compatibility status
@@ -58,106 +70,59 @@ sysdiff compatibility inspect .\before.sdshot
 sysdiff compatibility inspect .\before.sdshot --json
 ```
 
-Статусы: `Compatible`, `RequiresNewerSysDiff`, `UnsupportedLegacy`, `Invalid`. Inspection не записывает данные в SQLite и не выполняет автоматические migration handlers.
+Inspection проверяет ZIP paths, manifest, Snapshot ID, schema и SHA-256 без записи в SQLite.
 
 Подробнее: [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
 
 ## 🚀 Установка
 
-Откройте GitHub Releases и скачайте:
+Скачайте из GitHub Releases:
 
 ```text
-SysDiff-0.9.0-win-x64.zip
-SysDiff-0.9.0-win-x64.zip.sha256
+SysDiff-0.10.0-win-x64.zip
+SysDiff-0.10.0-win-x64.zip.sha256
 release-manifest.json
 ```
 
-Распакуйте ZIP и запустите:
+Распакуйте и запустите:
 
 ```powershell
 .\sysdiff.exe
 ```
 
-Portable package является self-contained и не требует установленного .NET Runtime.
-
-## 🔄 Stable Release Channel
-
-```powershell
-sysdiff update check
-sysdiff update status
-sysdiff update download
-sysdiff update install --yes --restart
-```
-
-По умолчанию auto-check включён, auto-download выключен, auto-install отсутствует. Установка всегда требует явного подтверждения.
-
-Updater проверяет официальный HTTPS-путь, размер, SHA-256, staged EXE version и выполняет backup/rollback при неуспешной post-install verification.
-
-Подробнее: [docs/UPDATES.md](docs/UPDATES.md).
-
-## 🖥️ Cyber Console
-
-```powershell
-sysdiff
-```
-
-Из исходников:
-
-```powershell
-dotnet run --project .\src\SysDiff.Cli
-```
-
-Основные модули:
+Portable package self-contained и не требует установленного .NET Runtime. Внутри также находятся:
 
 ```text
-[01] Snapshot Node
-[02] Diff Lab
-[03] Drift Operations
-[04] Investigation Timeline
-[05] Case Vault
-[06] Watch Operations
-[07] Live Signal
-[08] Report Vault
-[09] System Node
-       └─ Update Center
+SCHEMA_CONTRACT.txt
+schemas\public\v1\*.schema.json
+schema-fixtures\v1\*.json
+MIGRATIONS.txt
+COMPATIBILITY.txt
+UPDATES.txt
 ```
 
-Навигация: `1`…`9`, `↑/↓`, `Enter`, `Esc`, `F5`, `Q`. Безопасный статический режим:
+## 🖥️ Основные workflows
 
-```powershell
-$env:SYSDIFF_NO_ANIMATIONS = "1"
-$env:NO_COLOR = "1"
-sysdiff
-```
-
-## 📸 Снимки и сравнение
+### Snapshot и comparison
 
 ```powershell
 sysdiff snapshot create before --profile standard
-
-# Установите или запустите исследуемую программу
-
+# Запустите исследуемое приложение
 sysdiff snapshot create after --profile standard
 sysdiff compare before after --format html --output .\report.html
+sysdiff compare before after --format json --output .\report.json
 ```
 
-SysDiff собирает файлы, реестр, службы, Scheduled Tasks, автозагрузку, environment/PATH, Windows Firewall, установленные приложения, драйверы, сертификаты и network configuration.
-
-## 📡 Drift Operations
+### Drift Operations
 
 ```powershell
 sysdiff baseline set trusted-clean --note "После чистой установки"
 sysdiff drift scan --profile standard --noise Balanced
 sysdiff timeline list --limit 100
 sysdiff case create "Installer audit" --tags installer,test
-sysdiff case use "Installer audit"
 ```
 
-Drift Scan создаёт current snapshot, comparison, explainable risk score `0–100`, HTML/JSON reports и links в active case.
-
-> Drift Risk Score — детерминированная эвристика приоритета анализа, а не вероятность заражения.
-
-## 👀 Watch и Live Monitor
+### Watch и Live Monitor
 
 ```powershell
 sysdiff watch .\Setup.exe --wait-for-children --timeout 900
@@ -165,137 +130,76 @@ sysdiff live process --duration 60
 sysdiff live network --duration 60
 ```
 
-Live Monitor не внедряется в процессы, не завершает их, не читает содержимое сетевого трафика и не меняет firewall/network configuration.
-
-## 📦 Переносимые расследования
+### Portable investigation
 
 ```powershell
 sysdiff snapshot export before --output .\before.sdshot
 sysdiff compatibility inspect .\before.sdshot
 sysdiff snapshot import .\before.sdshot
+sysdiff bundle create <comparison-id> --output .\investigation.zip
 ```
 
-`.sdshot` содержит manifest, snapshot JSON и SHA-256. Investigation bundle объединяет снимки и готовые отчёты. Неизвестная более новая schema не импортируется частично.
-
-Подробнее: [docs/PORTABLE_FORMATS.md](docs/PORTABLE_FORMATS.md).
-
-## 🧩 Provider SDK
-
-Внешние providers загружаются только явно:
+## 🔄 Stable Release Channel
 
 ```powershell
-sysdiff --plugin .\MyProvider.dll snapshot create custom
+sysdiff update check
+sysdiff update download
+sysdiff update install --yes --restart
 ```
 
-SDK проверяет совместимую версию контракта. Автоматического поиска DLL и выполнения найденных системных строк нет.
-
-Подробнее: [docs/PROVIDER_SDK.md](docs/PROVIDER_SDK.md).
+Updater проверяет официальный HTTPS-path, размер, SHA-256 и staged executable version. Установка выполняет backup и rollback при failed verification.
 
 ## 🛠️ Сборка
 
-### Системные требования
-
-- Windows 10 x64 или Windows 11 x64;
-- CMD, Windows PowerShell, PowerShell 7 или Windows Terminal;
-- .NET 8 SDK для сборки;
-- права администратора рекомендуются для полного снимка.
+Требования: Windows 10/11 x64 и .NET 8 SDK.
 
 ```powershell
 git clone https://github.com/Onmaynec/SysDiff.git
 cd SysDiff
-
 dotnet restore SysDiff.sln
 dotnet build SysDiff.sln --configuration Release
 dotnet test SysDiff.sln --configuration Release
+.\scripts\package.ps1 -Version 0.10.0
+.\scripts\smoke-test.ps1 -ExpectedVersion 0.10.0
 ```
-
-Portable package:
-
-```powershell
-.\scripts\package.ps1 -Version 0.9.0
-.\scripts\smoke-test.ps1 -ExpectedVersion 0.9.0
-```
-
-Результат:
-
-```text
-artifacts\SysDiff-0.9.0-win-x64.zip
-artifacts\SysDiff-0.9.0-win-x64.zip.sha256
-artifacts\release-manifest.json
-```
-
-## 🏷️ Release pipeline
-
-Release PR использует ветку `agent/sysdiff-vX.Y.Z`. После Ready for review workflow ждёт squash merge и затем:
-
-1. сверяет branch/version;
-2. запускает полный test suite;
-3. собирает self-contained package;
-4. выполняет smoke-test;
-5. валидирует manifest и SHA-256;
-6. создаёт аннотированный tag;
-7. публикует provenance attestations;
-8. создаёт latest GitHub Release;
-9. проверяет release assets.
-
-Повторный запуск существующего tag является безопасным no-op.
 
 ## 🔐 Безопасность
 
-- данные хранятся локально;
-- `migration plan` не изменяет базу;
-- существующая база мигрируется только после `--yes`;
-- backup создаётся до SQL и проверяется SQLite;
-- transaction rollback не оставляет partial migration history;
-- база с более новым `user_version` отклоняется до initialization;
-- providers выполняют только заранее определённое чтение;
-- notes, tags, paths и captured commands считаются данными;
-- приватные ключи сертификатов не читаются;
-- плагины загружаются только через явный `--plugin`;
-- `.sdshot` защищён от path traversal, duplicate entries, excessive size и checksum tampering;
-- updater ограничивает host/path, проверяет hash и восстанавливает backup;
-- опасные действия требуют подтверждения;
-- `Ctrl+C` корректно отменяет длительные операции.
+- schemas и validation read-only;
+- unknown properties не выполняются как код;
+- future schema не интерпретируется частично;
+- migration требует подтверждения и backup;
+- `.sdshot` защищён от traversal, duplicate entries и checksum tampering;
+- plugins загружаются только через явный `--plugin`;
+- updater не заменяет работающий EXE напрямую;
+- данные остаются локальными.
 
-Версия 0.9.0 пока не имеет Authenticode code-signing сертификата. Release manifest честно содержит `unsigned=true`; SHA-256 и GitHub provenance подтверждают целостность и происхождение pipeline, но не заменяют Authenticode.
+Версия 0.10.0 пока публикуется без Authenticode. Manifest честно содержит `unsigned=true`; SHA-256 и GitHub provenance подтверждают целостность pipeline, но не заменяют code-signing сертификат.
 
 ## 📚 Документация
 
+- [Schema Contract v1](docs/SCHEMA_CONTRACT.md)
+- [Compatibility matrix](docs/COMPATIBILITY.md)
 - [Migration Lab](docs/MIGRATIONS.md)
-- [Совместимость и schema policy](docs/COMPATIBILITY.md)
-- [Обновления и Release Channel](docs/UPDATES.md)
-- [Drift Operations](docs/DRIFT_OPERATIONS.md)
-- [Cyber Console](docs/TERMINAL_UI.md)
+- [Обновления](docs/UPDATES.md)
 - [Команды](docs/COMMANDS.md)
 - [Архитектура](docs/ARCHITECTURE.md)
-- [Провайдеры](docs/PROVIDERS.md)
 - [Переносимые форматы](docs/PORTABLE_FORMATS.md)
 - [Provider SDK](docs/PROVIDER_SDK.md)
-- [Конфиденциальность](docs/PRIVACY.md)
 - [Безопасность](docs/SECURITY.md)
-- [Решение проблем](docs/TROUBLESHOOTING.md)
 - [Roadmap](docs/ROADMAP.md)
 - [История изменений](CHANGELOG.md)
 
 ## ⚠️ Ограничения
 
-- очень короткоживущие события могут завершиться между интервалами опроса;
-- защищённые области требуют администратора;
-- большие профили могут содержать сотни тысяч объектов;
-- risk score зависит от полноты providers;
-- текущая `.sdshot` schema `1` ещё не объявлена stable public schema 1.0;
-- Migration Lab 0.9 не преобразует неизвестные будущие схемы автоматически;
-- self-update доступен только опубликованному `sysdiff.exe`, не `dotnet run`;
+- stable Schema Contract v1 не означает завершение всех требований продукта 1.0;
+- reports/bundles, созданные до 0.10, считаются pre-contract;
+- automatic repair повреждённых JSON отсутствует;
+- Authenticode ещё не настроен;
 - SysDiff не заменяет EDR, антивирус или ручную экспертизу.
-
-## 📜 Лицензия
-
-Проект распространяется по лицензии [MIT](LICENSE).
-
----
 
 <div align="center">
 
-**SysDiff 0.9.0 — plan, back up, migrate, verify.**
+**SysDiff 0.10.0 — validate the contract before trusting the data.**
 
 </div>

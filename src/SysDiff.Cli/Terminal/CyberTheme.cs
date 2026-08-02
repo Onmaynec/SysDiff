@@ -1,3 +1,5 @@
+using SysDiff.Domain;
+
 namespace SysDiff.Cli;
 
 public enum CyberStageState
@@ -12,9 +14,9 @@ public enum CyberStageState
 
 public static class CyberTheme
 {
-    public const string Version = "0.9.0";
+    public const string Version = SysDiffProduct.Version;
     public const string ProductTitle = "SYSDIFF CYBER CONSOLE";
-    public const string ProductSubtitle = "WINDOWS MIGRATION & DRIFT CONTROL NODE";
+    public const string ProductSubtitle = "WINDOWS SCHEMA, MIGRATION & DRIFT CONTROL NODE";
 
     public static ConsoleColor Accent => ConsoleColor.Green;
 

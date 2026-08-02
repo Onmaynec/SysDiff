@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.sysdiff.dev/v1/investigation-bundle-manifest.schema.json",
+  "title": "SysDiff Investigation Bundle Manifest Schema Contract v1",
+  "description": "Stable public contract for manifest.json inside SysDiff investigation bundles.",
+  "type": "object",
+  "required": [
+    "format",
+    "formatVersion",
+    "schemaVersion",
+    "sysDiffVersion",
+    "createdAtUtc",
+    "comparisonId",
+    "beforeSnapshotId",
+    "afterSnapshotId",
+    "crossMachine",
+    "warnings",
+    "privacy"
+  ],
+  "properties": {
+    "format": { "const": "SysDiff Investigation Bundle" },
+    "formatVersion": { "const": 1 },
+    "schemaVersion": { "const": 1 },
+    "sysDiffVersion": { "$ref": "#/$defs/semver" },
+    "createdAtUtc": { "type": "string", "format": "date-time" },
+    "comparisonId": { "$ref": "#/$defs/uuid" },
+    "beforeSnapshotId": { "$ref": "#/$defs/uuid" },
+    "afterSnapshotId": { "$ref": "#/$defs/uuid" },
+    "crossMachine": { "type": "boolean" },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "privacy": { "$ref": "#/$defs/privacy" }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "uuid": { "type": "string", "format": "uuid" },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "privacy": {
+      "type": "object",
+      "required": ["userProfilePathsRedacted", "privateKeysIncluded", "rawLogsIncluded"],
+      "properties": {
+        "userProfilePathsRedacted": { "type": "boolean" },
+        "privateKeysIncluded": { "type": "boolean" },
+        "rawLogsIncluded": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "x-sysdiff-contract": {
+    "version": 1,
+    "stability": "stable",
+    "introducedIn": "0.10.0",
+    "additionalPropertiesPolicy": "allowed",
+    "breakingChangePolicy": "requires schema major version"
+  }
+}

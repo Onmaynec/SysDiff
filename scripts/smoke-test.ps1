@@ -1,10 +1,11 @@
 [CmdletBinding()]
 param(
     [string]$Executable = ".\artifacts\publish\win-x64\sysdiff.exe",
-    [string]$ExpectedVersion = "0.9.0"
+    [string]$ExpectedVersion = "0.10.0"
 )
 
 $ErrorActionPreference = "Stop"
+$root = Split-Path -Parent $PSScriptRoot
 
 if (-not (Test-Path $Executable)) {
     throw "Файл не найден: $Executable"
@@ -24,14 +25,50 @@ if (-not $fileVersion.StartsWith($ExpectedVersion, [System.StringComparison]::Or
 }
 
 $helpOutput = (& $Executable --help | Out-String)
-if ($LASTEXITCODE -ne 0 -or $helpOutput -notmatch "MIGRATION LAB 0.9") {
-    throw "Команда --help не содержит Migration Lab 0.9"
+if ($LASTEXITCODE -ne 0 -or $helpOutput -notmatch "SCHEMA CONTRACT CENTER 0.10") {
+    throw "Команда --help не содержит Schema Contract Center 0.10"
 }
-if ($helpOutput -notmatch "migration apply --yes" -or
+if ($helpOutput -notmatch "schema validate" -or
+    $helpOutput -notmatch "MIGRATION LAB 0.9" -or
+    $helpOutput -notmatch "migration apply --yes" -or
     $helpOutput -notmatch "compatibility inspect" -or
     $helpOutput -notmatch "update install --yes" -or
     $helpOutput -notmatch "DRIFT OPERATIONS 0.6") {
-    throw "Команда --help не содержит migration, compatibility, updater и Drift Operations"
+    throw "Команда --help не содержит schema, migration, compatibility, updater и Drift Operations"
+}
+
+$schemaCatalog = (& $Executable schema list --json | Out-String)
+if ($LASTEXITCODE -ne 0 -or
+    $schemaCatalog -notmatch '"productVersion": "0.10.0"' -or
+    $schemaCatalog -notmatch '"contractVersion": 1' -or
+    $schemaCatalog -notmatch '"jsonSchemaDraft": "2020-12"' -or
+    $schemaCatalog -notmatch '"key": "snapshot"' -or
+    $schemaCatalog -notmatch '"key": "comparison"' -or
+    $schemaCatalog -notmatch '"key": "bundle"') {
+    throw "Команда schema list --json не прошла smoke-проверку"
+}
+
+$schemaDocument = (& $Executable schema show snapshot | Out-String)
+if ($LASTEXITCODE -ne 0 -or
+    $schemaDocument -notmatch 'https://json-schema.org/draft/2020-12/schema' -or
+    $schemaDocument -notmatch 'snapshot.schema.json' -or
+    $schemaDocument -notmatch '"stability": "stable"') {
+    throw "Команда schema show snapshot не вернула embedded public schema"
+}
+
+$schemaFixtures = @(
+    @{ Kind = "snapshot"; Path = Join-Path $root "tests\fixtures\schema\v1\snapshot.valid.json" },
+    @{ Kind = "comparison"; Path = Join-Path $root "tests\fixtures\schema\v1\comparison-report.valid.json" },
+    @{ Kind = "bundle"; Path = Join-Path $root "tests\fixtures\schema\v1\investigation-bundle-manifest.valid.json" }
+)
+foreach ($fixture in $schemaFixtures) {
+    $validation = (& $Executable schema validate $fixture.Kind $fixture.Path --json | Out-String)
+    if ($LASTEXITCODE -ne 0 -or
+        $validation -notmatch '"status": "Valid"' -or
+        $validation -notmatch '"documentSchemaVersion": 1' -or
+        $validation -notmatch '"isValid": true') {
+        throw "Golden fixture $($fixture.Kind) не прошёл Schema Contract validation"
+    }
 }
 
 $migrationStatus = (& $Executable migration status --json | Out-String)
@@ -52,7 +89,7 @@ if ($LASTEXITCODE -ne 0 -or
 
 $compatibilityStatus = (& $Executable compatibility status --json | Out-String)
 if ($LASTEXITCODE -ne 0 -or
-    $compatibilityStatus -notmatch '"productVersion": "0.9.0"' -or
+    $compatibilityStatus -notmatch '"productVersion": "0.10.0"' -or
     $compatibilityStatus -notmatch '"currentFormatVersion": 1' -or
     $compatibilityStatus -notmatch '"currentSchemaVersion": 1') {
     throw "Команда compatibility status --json не прошла smoke-проверку"
@@ -75,7 +112,7 @@ if ($LASTEXITCODE -ne 0 -or $caseOutput -notmatch "Кейсов пока нет"
 
 $updateStatus = (& $Executable update status --json | Out-String)
 if ($LASTEXITCODE -ne 0 -or
-    $updateStatus -notmatch '"currentVersion": "0.9.0"' -or
+    $updateStatus -notmatch '"currentVersion": "0.10.0"' -or
     $updateStatus -notmatch '"status":') {
     throw "Команда update status --json не прошла smoke-проверку"
 }
@@ -97,14 +134,14 @@ finally {
     Remove-Item Env:SYSDIFF_NO_ANIMATIONS -ErrorAction SilentlyContinue
     Remove-Item Env:NO_COLOR -ErrorAction SilentlyContinue
 }
-if ($LASTEXITCODE -ne 0 -or $tuiOutput -notmatch "SYSDIFF CYBER CONSOLE 0.9.0") {
+if ($LASTEXITCODE -ne 0 -or $tuiOutput -notmatch "SYSDIFF CYBER CONSOLE 0.10.0") {
     throw "Cyber Console smoke frame не сформирован"
 }
-if ($tuiOutput -notmatch "MIGRATION LAB" -or
-    $tuiOutput -notmatch "DRY-RUN: DEFAULT" -or
-    $tuiOutput -notmatch "APPLY: CONFIRM" -or
-    $tuiOutput -notmatch "ROLLBACK: ATOMIC") {
-    throw "Smoke frame не содержит ключевые блоки Migration Lab"
+if ($tuiOutput -notmatch "SCHEMA CONTRACT CENTER" -or
+    $tuiOutput -notmatch "SCHEMA: V1 STABLE" -or
+    $tuiOutput -notmatch "ADDITIVE: ALLOW" -or
+    $tuiOutput -notmatch "BREAKING: MAJOR") {
+    throw "Smoke frame не содержит ключевые блоки Schema Contract Center"
 }
 
-Write-Host "✅ Smoke-тест SysDiff $ExpectedVersion и Migration Lab пройден." -ForegroundColor Green
+Write-Host "✅ Smoke-тест SysDiff $ExpectedVersion и Schema Contract v1 пройден." -ForegroundColor Green

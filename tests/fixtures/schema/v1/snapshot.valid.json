@@ -1,0 +1,53 @@
+{
+  "Id": "11111111-1111-1111-1111-111111111111",
+  "Name": "golden-snapshot-v1",
+  "CreatedAtUtc": "2026-08-02T08:00:00+00:00",
+  "SysDiffVersion": "0.10.0",
+  "SchemaVersion": 1,
+  "ProfileName": "standard",
+  "Status": "Completed",
+  "WindowsEdition": "Windows 11 Pro",
+  "WindowsBuild": "26100",
+  "Architecture": "x64",
+  "MachineFingerprint": "sha256:golden-fixture",
+  "Comment": "Stable Schema Contract v1 golden fixture",
+  "ProviderResults": [
+    {
+      "ProviderId": "fixture.provider",
+      "DisplayName": "Golden Provider",
+      "Status": "Success",
+      "StartedAtUtc": "2026-08-02T08:00:00+00:00",
+      "FinishedAtUtc": "2026-08-02T08:00:01+00:00",
+      "ArtifactCount": 1,
+      "Warnings": [],
+      "Errors": [],
+      "Artifacts": [],
+      "RequiresAdministrator": false,
+      "ProviderExtension": "allowed"
+    }
+  ],
+  "Artifacts": [
+    {
+      "ProviderId": "fixture.provider",
+      "ArtifactType": "Fixture",
+      "Identity": "fixture://artifact/1",
+      "DisplayName": "Golden Artifact",
+      "Properties": {
+        "Path": {
+          "Value": "C:\\Fixture\\sample.txt",
+          "Type": "String",
+          "Redacted": false,
+          "Hash": null,
+          "ValueExtension": true
+        }
+      },
+      "Tags": ["golden", "schema-v1"],
+      "ArtifactExtension": {
+        "accepted": true
+      }
+    }
+  ],
+  "FutureAdditiveExtension": {
+    "accepted": true
+  }
+}

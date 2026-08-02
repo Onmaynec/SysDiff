@@ -12,6 +12,7 @@ internal sealed class InvestigationBundleService
 {
     private readonly ISnapshotStore _store;
     private readonly SnapshotArchiveService _snapshotArchive;
+    private readonly SchemaContractService _schemaContracts;
     private readonly JsonReportRenderer _jsonRenderer;
     private readonly MarkdownReportRenderer _markdownRenderer;
     private readonly HtmlReportRenderer _htmlRenderer;
@@ -19,12 +20,14 @@ internal sealed class InvestigationBundleService
     public InvestigationBundleService(
         ISnapshotStore store,
         SnapshotArchiveService snapshotArchive,
+        SchemaContractService schemaContracts,
         JsonReportRenderer jsonRenderer,
         MarkdownReportRenderer markdownRenderer,
         HtmlReportRenderer htmlRenderer)
     {
         _store = store;
         _snapshotArchive = snapshotArchive;
+        _schemaContracts = schemaContracts;
         _jsonRenderer = jsonRenderer;
         _markdownRenderer = markdownRenderer;
         _htmlRenderer = htmlRenderer;
@@ -78,8 +81,9 @@ internal sealed class InvestigationBundleService
             var manifest = new
             {
                 format = "SysDiff Investigation Bundle",
-                formatVersion = 1,
-                sysDiffVersion = "0.3.0",
+                formatVersion = SysDiffProduct.InvestigationBundleFormatVersion,
+                schemaVersion = SysDiffProduct.PublicSchemaVersion,
+                sysDiffVersion = SysDiffProduct.Version,
                 createdAtUtc = DateTimeOffset.UtcNow,
                 comparisonId = comparison.Id,
                 beforeSnapshotId = before.Id,
@@ -93,9 +97,26 @@ internal sealed class InvestigationBundleService
                     rawLogsIncluded = false
                 }
             };
+            string manifestJson = JsonSerializer.Serialize(
+                manifest,
+                new JsonSerializerOptions { WriteIndented = true });
+            SchemaValidationResult manifestValidation = _schemaContracts.ValidateJson(
+                SchemaContractKind.InvestigationBundleManifest,
+                manifestJson,
+                "manifest.json");
+            if (!manifestValidation.IsValid)
+            {
+                string issues = string.Join(
+                    "; ",
+                    manifestValidation.Issues.Select(value =>
+                        $"{value.Path} [{value.Code}] {value.Message}"));
+                throw new InvalidDataException(
+                    $"Bundle manifest не соответствует Schema Contract v1: {issues}");
+            }
+
             await File.WriteAllTextAsync(
                 Path.Combine(working, "manifest.json"),
-                JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }),
+                manifestJson,
                 cancellationToken);
 
             string[] payloadFiles = Directory.GetFiles(working)

@@ -1,109 +1,92 @@
 # 🗺️ Roadmap SysDiff
 
-Roadmap отражает направление проекта, а не обещание конкретной даты.
+Roadmap отражает направление проекта, а не обещание даты.
 
-## 0.1.0 — ядро MVP ✅
+## Завершённые этапы
 
-- [x] snapshots, SQLite и comparison;
-- [x] базовые Windows providers;
-- [x] Console/JSON/Markdown/HTML;
-- [x] portable package, tests и GitHub Actions.
+### 0.1.0 — ядро MVP ✅
 
-## 0.2.0 — расширение покрытия ✅
+Snapshots, SQLite, comparison, базовые providers, reports, tests и CI.
 
-- [x] Firewall, приложения, драйверы и сертификаты;
-- [x] ожидание дерева процессов;
-- [x] дополнительные severity/noise rules.
+### 0.2.0 — расширение покрытия ✅
 
-## 0.3.0 — расследования ✅
+Firewall, apps, drivers, certificates, process-tree waiting и severity/noise rules.
 
-- [x] live process/network monitor;
-- [x] network configuration provider;
-- [x] `.sdshot` и investigation bundle;
-- [x] custom profiles;
-- [x] cross-machine compare;
-- [x] move/rename detection;
-- [x] Provider SDK;
-- [x] privacy redaction.
+### 0.3.0 — расследования ✅
 
-## 0.4.0 — Terminal Control Center ✅
+Live monitor, `.sdshot`, bundles, custom profiles, cross-machine compare, move detection, Provider SDK и privacy redaction.
 
-- [x] полноэкранный dashboard;
-- [x] стрелочная навигация;
-- [x] Snapshot/Diff/Watch/Live modules;
-- [x] reports, diagnostics и TUI tests.
+### 0.4.0 — Terminal Control Center ✅
 
-## 0.5.0 — Cyber Console ✅
+Fullscreen dashboard, keyboard navigation, Snapshot/Diff/Watch/Live modules и TUI tests.
 
-- [x] Cyber Control Node;
-- [x] Command Deck `1–9`;
-- [x] boot sequence;
-- [x] Action Console;
-- [x] Provider Stream;
-- [x] neon theme;
-- [x] safe motion/color modes.
+### 0.5.0 — Cyber Console ✅
 
-## 0.6.0 — Drift Operations ✅
+Control Node, Command Deck, boot sequence, Action Console, Provider Stream и safe animation/color modes.
 
-- [x] Baseline Vault;
-- [x] Drift Scan;
-- [x] explainable risk score;
-- [x] Investigation Timeline;
-- [x] Case Vault;
-- [x] active case links;
-- [x] additive SQLite migration;
-- [x] legacy timeline reconstruction;
-- [x] CLI/TUI/storage/risk tests.
+### 0.6.0 — Drift Operations ✅
 
-## 0.7.0 — Release Channel ✅
+Baseline Vault, Drift Scan, risk score, Timeline, Case Vault и additive investigation storage.
 
-- [x] tagged GitHub Releases;
-- [x] release manifest и SHA-256;
-- [x] provenance attestations;
-- [x] stable updater;
-- [x] staged install, backup и rollback;
-- [x] Update Center.
+### 0.7.0 — Release Channel ✅
 
-## 0.8.0 — Compatibility Center ✅
+Tagged releases, manifest, SHA-256, provenance, stable updater, staged install и rollback.
 
-- [x] format/schema compatibility matrix;
-- [x] read-only `.sdshot` inspection;
-- [x] JSON status для CI;
+### 0.8.0 — Compatibility Center ✅
+
+Read-only `.sdshot` inspection, format/schema matrix, future rejection и exact checksum validation.
+
+### 0.9.0 — Migration Lab ✅
+
+Dry-run database plan, verified backup, transaction rollback, history, lock и future DB guard.
+
+### 0.10.0 — Schema Contract ✅
+
+- [x] Draft 2020-12 schemas для snapshot, comparison и bundle;
+- [x] stable public contract major 1;
+- [x] embedded schema catalog;
+- [x] CLI validation и machine-readable issues;
+- [x] golden fixtures;
+- [x] additive extension policy;
 - [x] future schema rejection;
-- [x] exact checksum validation;
-- [x] manifest/snapshot invariant checks;
-- [x] compatibility policy и recovery guide.
+- [x] reader/writer matrix;
+- [x] deprecation и breaking-change policy;
+- [x] self-validating bundle writer;
+- [x] offline schemas/fixtures в portable package.
 
-## 0.9.0 — Migration Lab ✅
+## Путь к product 1.0
 
-- [x] database migration status и dry-run plan;
-- [x] SQLite-consistent backup;
-- [x] transaction rollback;
-- [x] migration history и run audit;
-- [x] exclusive migration lock;
-- [x] `PRAGMA user_version` guard;
-- [x] unknown/future database rejection;
-- [x] additive metadata migration;
-- [x] integration tests backup/idempotency/rollback;
-- [x] recovery guide и JSON automation contract.
+### Data evolution
 
-## Путь к 1.0
+- [ ] реальные migration handlers для будущего schema major 2;
+- [ ] tested upgrade chain для всех поддерживаемых legacy formats;
+- [ ] compatibility fixtures реальных exports 0.3–0.9;
+- [ ] rollback preview для системных изменений.
 
-- [ ] JSON Schema для snapshot, comparison и bundle;
-- [ ] golden fixtures версий 0.3–0.9;
-- [ ] реальные handlers для breaking portable formats;
-- [ ] полная reader/writer compatibility matrix;
-- [ ] deprecation policy;
-- [ ] tested upgrade chain до stable schema 1.0.
+### Release trust
+
+- [ ] Authenticode signed official executable;
+- [ ] documented certificate rotation/revocation procedure;
+- [ ] reproducibility verification beyond current provenance attestations.
+
+### Scale и UX
+
+- [ ] snapshots с миллионами objects;
+- [ ] streaming report generation;
+- [ ] полная RU/EN localization;
+- [ ] accessibility audit Cyber Console;
+- [ ] long-term support policy.
 
 ## 1.0.0 — стабильность
 
-- [ ] стабильная публичная schema;
-- [ ] полный migration path из поддерживаемых 0.x;
-- [ ] Authenticode signed releases;
-- [ ] безопасный rollback preview/handlers;
-- [ ] snapshots с миллионами objects;
-- [ ] полная RU/EN localization;
-- [ ] гарантированная backward compatibility policy.
+Product 1.0 требует одновременно:
+
+- stable public Schema Contract v1 ✅;
+- documented compatibility policy ✅;
+- safe database migration foundation ✅;
+- tested legacy upgrade paths;
+- Authenticode signed releases;
+- performance targets для large snapshots;
+- complete localization/support documentation.
 
 Актуальные задачи находятся в [GitHub Issues](https://github.com/Onmaynec/SysDiff/issues).

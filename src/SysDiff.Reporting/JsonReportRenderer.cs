@@ -20,7 +20,10 @@ public sealed class JsonReportRenderer
         JsonSerializer.Serialize(
             new
             {
-                schemaVersion = 1,
+                format = "SysDiff Comparison Report",
+                formatVersion = 1,
+                schemaVersion = SysDiffProduct.PublicSchemaVersion,
+                sysDiffVersion = SysDiffProduct.Version,
                 generatedAtUtc = DateTimeOffset.UtcNow,
                 before = new
                 {
