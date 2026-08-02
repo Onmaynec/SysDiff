@@ -73,21 +73,21 @@ internal sealed class V11CommandRouter
                         productVersion = ProductInfo.Version,
                         targetSchemaVersion = 1,
                         sourceRange = "0.3.0-0.9.x",
-                        formats = new[]
+                        formats = new object[]
                         {
                             new
                             {
                                 kind = "comparison",
                                 sourceShape = "pre-0.10 JSON report",
                                 target = "SysDiff Comparison Report schema v1",
-                                unknownProducerVersion = "0.0.0-legacy"
+                                notes = "unknown producer version is recorded as 0.0.0-legacy"
                             },
                             new
                             {
                                 kind = "bundle",
                                 sourceShape = "pre-0.10 investigation ZIP",
                                 target = "manifest/report schema v1",
-                                nestedSnapshots = "preserved byte-for-byte"
+                                notes = "nested snapshots are preserved byte-for-byte"
                             }
                         },
                         safety = new
