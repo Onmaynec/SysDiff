@@ -1,6 +1,6 @@
 # 🔄 Обновления SysDiff
 
-SysDiff 0.10.0 использует официальный **stable release channel** GitHub. Проверка выполняется по `release-manifest.json`, опубликованному вместе с release assets.
+SysDiff 0.11.0 использует официальный **stable release channel** GitHub. Проверка выполняется по `release-manifest.json`, опубликованному вместе с release assets.
 
 ## Быстрый старт
 
@@ -34,7 +34,7 @@ sysdiff update settings
 sysdiff update settings --auto-check false
 sysdiff update settings --auto-check true --interval-hours 12
 sysdiff update settings --auto-download true
-sysdiff update settings --ignore 0.10.0
+sysdiff update settings --ignore 0.11.0
 sysdiff update settings --ignore none
 ```
 
@@ -52,15 +52,7 @@ Auto-download не устанавливает update. Install всегда тр�
 
 ## Проверка ZIP
 
-Перед staging проверяются:
-
-1. HTTP Content-Length;
-2. фактический размер;
-3. SHA-256;
-4. безопасные ZIP paths;
-5. unpacked size limit;
-6. наличие `sysdiff.exe`;
-7. staged `SysDiff <version>` output.
+Перед staging проверяются HTTP/final size, SHA-256, безопасные ZIP paths, unpacked size limit, наличие `sysdiff.exe` и staged `SysDiff <version>` output.
 
 ## Безопасная установка
 
@@ -92,28 +84,32 @@ Updater не удаляет:
 - reports/logs/profiles;
 - update settings;
 - migration backups;
-- public schemas и fixtures из нового package.
+- Legacy Bridge backups;
+- public schemas и fixtures.
 
-Обновление EXE не применяет database migrations автоматически. После установки используйте:
+Обновление EXE не применяет database или portable migrations автоматически. После установки используйте независимые checks:
 
 ```powershell
 sysdiff migration status
-sysdiff migration plan
+sysdiff schema list
+sysdiff legacy matrix
 ```
 
-Schema Contract можно проверить независимо:
+Legacy portable conversion запускается только явно:
 
 ```powershell
-sysdiff schema list
-sysdiff schema validate snapshot .\snapshot.json
+sysdiff legacy plan comparison .\old-report.json
+sysdiff legacy convert comparison .\old-report.json --yes
 ```
 
-## Package 0.10
+## Package 0.11
 
 Portable ZIP включает:
 
 ```text
-SysDiff-0.10.0-win-x64.zip
+SysDiff-0.11.0-win-x64.zip
+LEGACY_BRIDGE.txt
+legacy-fixtures/v0.9/*.json
 SCHEMA_CONTRACT.txt
 schemas/public/v1/*.schema.json
 schema-fixtures/v1/*.json
@@ -126,7 +122,7 @@ UPDATES.txt
 
 Official release содержит ZIP, `.sha256`, `release-manifest.json` и GitHub artifact attestations.
 
-Версия 0.10.0 пока без Authenticode:
+Версия 0.11.0 пока без Authenticode:
 
 ```json
 {
@@ -142,7 +138,7 @@ SHA-256 и provenance подтверждают integrity/origin pipeline, но �
 2. проверьте hash;
 3. закройте SysDiff;
 4. распакуйте в новый каталог;
-5. сохраните пользовательские data directories;
-6. запустите `migration status` и `schema list`.
+5. сохраните пользовательские data directories и backups;
+6. запустите `migration status`, `schema list` и при необходимости `legacy plan`.
 
 Не заменяйте работающий EXE напрямую.
