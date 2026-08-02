@@ -1,4 +1,4 @@
-# 📦 Переносимые форматы SysDiff 0.8.0
+# 📦 Переносимые форматы SysDiff 0.11.0
 
 ## `.sdshot`
 
@@ -10,62 +10,57 @@ snapshot.json
 checksums.sha256
 ```
 
-### Экспорт
+### Экспорт и inspection
 
 ```powershell
 sysdiff snapshot export before --output .\before.sdshot
-```
-
-### Проверка до импорта
-
-```powershell
 sysdiff compatibility inspect .\before.sdshot
 sysdiff compatibility inspect .\before.sdshot --json
 ```
 
-Inspection является read-only: snapshot не сохраняется в SQLite и не меняет baseline/active case.
-
-### Импорт
-
-```powershell
-sysdiff snapshot import .\before.sdshot
-```
-
-`ImportAsync` использует ту же compatibility policy, что и inspection. Сохранение начинается только при `canImport=true`.
+Inspection read-only. Import использует ту же compatibility policy и сохраняет snapshot только при `canImport=true`.
 
 ### Проверки безопасности
 
-- максимальный размер входного архива — 512 МБ;
-- максимальный размер JSON снимка — 1 ГБ;
-- число ZIP entries ограничено;
-- каждый entry должен находиться в корне архива;
-- path traversal, drive paths и абсолютные пути отклоняются;
-- `manifest.json`, `snapshot.json`, `checksums.sha256` должны присутствовать ровно один раз;
-- SHA-256 проверяется по отдельным точным строкам;
-- JSON обязан корректно десериализоваться;
-- format identifier должен быть `SysDiff Snapshot`;
-- Snapshot ID и schema version должны совпадать между manifest и snapshot;
-- более новая schema отклоняется до сохранения;
-- данные архива никогда не выполняются.
+- archive/JSON size limits;
+- ограниченное число ZIP entries;
+- каждый entry находится в корне;
+- traversal, drive и absolute paths отклоняются;
+- required entries присутствуют ровно один раз;
+- exact SHA-256 lines;
+- format, Snapshot ID и schema invariants;
+- future schema отклоняется до сохранения.
 
-## Manifest
+Snapshot JSON schema `1` является stable public contract v1. Исторические `.sdshot` 0.3–0.9 с format/schema `1` остаются читаемыми и не требуют Legacy Bridge.
 
-Основные поля:
+## Comparison JSON report
+
+Writer 0.10+ создаёт:
 
 ```json
 {
-  "format": "SysDiff Snapshot",
+  "format": "SysDiff Comparison Report",
   "formatVersion": 1,
   "schemaVersion": 1,
-  "sysDiffVersion": "0.8.0",
-  "snapshotId": "00000000-0000-0000-0000-000000000000",
-  "createdAtUtc": "2026-08-01T00:00:00Z"
+  "sysDiffVersion": "0.11.0",
+  "generatedAtUtc": "2026-08-02T00:00:00Z",
+  "before": {},
+  "after": {},
+  "comparison": {}
 }
 ```
 
-JSON serializer может использовать PascalCase в фактическом archive payload; reader является case-insensitive. Семантика полей и version policy остаются инвариантными.
+Reports 0.3–0.9 содержат payload, но не `format`, `formatVersion` и `sysDiffVersion`. Их можно преобразовать:
 
-## 🧳 Investigation bundle
+```powershell
+sysdiff legacy plan comparison .\report-old.json
+sysdiff legacy convert comparison .\report-old.json --yes
+sysdiff legacy verify comparison .\report-old.schema-v1.json
+```
+
+Поскольку producer version в старом report отсутствует, handler использует `0.0.0-legacy` и сохраняет provenance в additive `legacyMigration`.
+
+## Investigation bundle
 
 ```powershell
 sysdiff bundle create <comparison-id> --output .\investigation.zip
@@ -83,17 +78,61 @@ report.json
 report.md
 ```
 
-Bundle не включает сырые логи, дампы памяти или приватные ключи. Перед передачей архива третьей стороне всё равно проверьте имена приложений, сертификатов и системные метаданные.
+Writer 0.10+ self-validates manifest against public schema v1 до ZIP creation.
 
-## Совместимость
+### Legacy bundle 0.3–0.9
 
-Версия 0.8.0 использует `formatVersion: 1` и `schemaVersion: 1`. Снимки 0.3–0.7 с этими значениями остаются читаемыми.
+```powershell
+sysdiff legacy plan bundle .\investigation-old.zip
+sysdiff legacy convert bundle .\investigation-old.zip --yes
+sysdiff legacy verify bundle .\investigation-old.schema-v1.zip
+```
 
-Статусы Compatibility Center:
+Plan проверяет все ZIP paths, duplicate names, required entries, SHA-256 и JSON shape. Conversion:
 
-- `Compatible` — можно импортировать;
-- `RequiresNewerSysDiff` — reader старее формата;
-- `UnsupportedLegacy` — отсутствует безопасный migration handler;
-- `Invalid` — нарушена структура, integrity или manifest invariant.
+- добавляет schema/provenance metadata в manifest;
+- преобразует legacy report;
+- сохраняет остальные entries;
+- сохраняет `before.sdshot`/`after.sdshot` byte-for-byte;
+- пересчитывает `checksums.sha256`;
+- повторно открывает и валидирует output.
 
-Текущая schema `1` ещё не объявлена стабильной публичной schema 1.0. Подробнее: [COMPATIBILITY.md](COMPATIBILITY.md).
+## Backup и output
+
+Legacy Bridge по умолчанию пишет side-by-side:
+
+```text
+report-old.schema-v1.json
+investigation-old.schema-v1.zip
+```
+
+До записи всегда создаётся source backup. Existing output требует `--overwrite`; conversion требует `--yes`.
+
+## Public schemas
+
+```text
+schemas/public/v1/
+├── snapshot.schema.json
+├── comparison-report.schema.json
+└── investigation-bundle-manifest.schema.json
+```
+
+Проверка отдельных JSON documents:
+
+```powershell
+sysdiff schema validate snapshot .\snapshot.json
+sysdiff schema validate comparison .\report.json
+sysdiff schema validate bundle .\manifest.json
+```
+
+## Независимые версии
+
+| Значение | Current |
+|---|---:|
+| Product version | `0.11.0` |
+| Public JSON schema | `1` |
+| `.sdshot` container format | `1` |
+| Investigation bundle format | `1` |
+| SQLite `PRAGMA user_version` | `9` |
+
+Подробнее: [LEGACY_BRIDGE.md](LEGACY_BRIDGE.md), [SCHEMA_CONTRACT.md](SCHEMA_CONTRACT.md) и [COMPATIBILITY.md](COMPATIBILITY.md).
