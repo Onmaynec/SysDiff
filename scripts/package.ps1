@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = "0.11.0",
+    [string]$Version = "0.12.0",
     [string]$Runtime = "win-x64"
 )
 
@@ -24,7 +24,7 @@ if ($Version -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') {
     throw "Версия должна быть стабильной SemVer X.Y.Z: $Version"
 }
 if ($Runtime -ne "win-x64") {
-    throw "Официальный release channel 0.11 поддерживает только win-x64"
+    throw "Официальный release channel 0.12 поддерживает только win-x64"
 }
 
 Remove-Item $publish, $packageRoot, $zipPath, $checksumPath, $manifestPath `
@@ -59,6 +59,7 @@ try {
     Copy-Item .\docs\MIGRATIONS.md (Join-Path $packageRoot "MIGRATIONS.txt")
     Copy-Item .\docs\SCHEMA_CONTRACT.md (Join-Path $packageRoot "SCHEMA_CONTRACT.txt")
     Copy-Item .\docs\LEGACY_BRIDGE.md (Join-Path $packageRoot "LEGACY_BRIDGE.txt")
+    Copy-Item .\docs\SCALE_LAB.md (Join-Path $packageRoot "SCALE_LAB.txt")
     Copy-Item .\samples\profiles (Join-Path $packageRoot "profiles") -Recurse
 
     $schemaDestination = Join-Path $packageRoot "schemas\public\v1"
@@ -107,6 +108,7 @@ try {
     Write-Host "✅ Архив: $zipPath" -ForegroundColor Green
     Write-Host "🔐 SHA-256: $hash" -ForegroundColor Green
     Write-Host "📜 Manifest: $manifestPath" -ForegroundColor Green
+    Write-Host "🚀 Scale Lab: bounded-memory NDJSON guide" -ForegroundColor Green
     Write-Host "🌉 Legacy Bridge: guide + 0.9 fixture" -ForegroundColor Green
     Write-Host "📐 Schema Contract: public v1 + golden fixtures" -ForegroundColor Green
     Write-Host "⚠️  Authenticode: unsigned build (сертификат пока не настроен)" -ForegroundColor Yellow
