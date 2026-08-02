@@ -1,18 +1,16 @@
 # 📐 SysDiff Schema Contract v1
 
-SysDiff 0.10.0 публикует первый стабильный публичный контракт переносимых JSON-данных. Контракт отделён от версии приложения: продукт остаётся в серии `0.x`, но public schema major `1` уже имеет формальные правила совместимости.
+SysDiff 0.10.0 опубликовал первый стабильный public contract переносимых JSON-данных. SysDiff 0.11.0 добавляет Legacy Bridge, который преобразует документированные pre-contract reports/bundles 0.3–0.9 в этот contract без изменения schema major.
 
 ## Контракты
 
-| Key | Документ | Schema | Writer 0.10 | Reader 0.10 |
+| Key | Документ | Schema | Minimum reader | Current writer |
 |---|---|---:|---:|---:|
-| `snapshot` | `snapshot.json` внутри `.sdshot` | 1 | 1 | 1 |
-| `comparison` | JSON comparison report | 1 | 1 | 1 |
-| `bundle` | `manifest.json` investigation bundle | 1 | 1 | 1 |
+| `snapshot` | `snapshot.json` внутри `.sdshot` | 1 | 0.10.0 | 0.11.0 |
+| `comparison` | JSON comparison report | 1 | 0.10.0 | 0.11.0 |
+| `bundle` | `manifest.json` investigation bundle | 1 | 0.10.0 | 0.11.0 |
 
 Стандарт: **JSON Schema Draft 2020-12**.
-
-Файлы:
 
 ```text
 schemas/public/v1/
@@ -30,9 +28,13 @@ tests/fixtures/schema/v1/
 └── investigation-bundle-manifest.valid.json
 ```
 
-Portable release включает копии schemas и fixtures для offline validation.
+Legacy fixture:
 
-## CLI
+```text
+tests/fixtures/legacy/v0.9/comparison-report.legacy.json
+```
+
+## CLI validation
 
 ```powershell
 sysdiff schema list
@@ -45,39 +47,49 @@ sysdiff schema validate comparison .\report.json --json
 sysdiff schema validate bundle .\manifest.json --json
 ```
 
-Aliases:
+Aliases: `schemas`, `contract`, `schema verify`. Exit code `0` означает valid contract, `4` — invalid/future document.
+
+## Legacy upgrade
+
+Pre-contract comparison reports 0.3–0.9 уже содержат core payload, но не имеют `format`, `formatVersion` и `sysDiffVersion`. Investigation bundles того же периода имеют manifest без `schemaVersion` и legacy report.
 
 ```powershell
-sysdiff schemas matrix
-sysdiff contract verify snapshot .\snapshot.json
+sysdiff legacy plan comparison .\report-old.json
+sysdiff legacy convert comparison .\report-old.json --yes
+sysdiff legacy verify comparison .\report-old.schema-v1.json
+
+sysdiff legacy plan bundle .\investigation-old.zip
+sysdiff legacy convert bundle .\investigation-old.zip --yes
 ```
 
-Exit code `0` означает valid contract. Exit code `4` означает invalid document или schema version, требующую более новую версию SysDiff.
+Legacy Bridge создаёт backup, пишет output атомарно и принимает результат только после Schema Contract/ZIP/checksum validation. `.sdshot` 0.3–0.9 не переписываются.
+
+Старый comparison report не сохранял producer version, поэтому handler использует честный sentinel `0.0.0-legacy` и additive provenance object.
 
 ## Статусы validation
 
 ### `Valid`
 
-Обязательные поля присутствуют, типы и форматы корректны, enum-значения известны, schema version поддерживается.
+Required fields, types, formats, enum values и supported schema version корректны.
 
 ### `Invalid`
 
-Документ нарушает contract: отсутствует обязательное поле, неверен UUID/date/SemVer, тип или enum, либо JSON повреждён.
+Document нарушает contract: missing field, неверный UUID/date/SemVer/type/enum или damaged JSON.
 
 ### `RequiresNewerSysDiff`
 
-Document schema version выше текущего reader. SysDiff не пытается интерпретировать неизвестную major/minor форму как старую.
+Document schema version выше reader. SysDiff не интерпретирует unknown major как старую форму.
 
 ## Правила совместимости
 
 ### Additive change
 
-Разрешено без новой schema major:
+Разрешено внутри schema major `1`:
 
-- новое optional поле;
-- новый объект extension в неизвестном property;
-- новая необязательная metadata;
-- дополнительный элемент массива, соответствующий существующему item contract.
+- новое optional field;
+- additive extension object;
+- новая optional metadata;
+- дополнительный array item, соответствующий существующему item contract.
 
 Все public schemas используют:
 
@@ -87,116 +99,96 @@ Document schema version выше текущего reader. SysDiff не пыта�
 }
 ```
 
-Reader обязан игнорировать неизвестные свойства, а не считать документ повреждённым. Golden fixtures намеренно содержат extension fields, чтобы CI проверял это поведение.
+Reader игнорирует неизвестные properties. Golden и legacy fixtures намеренно содержат extension fields, чтобы CI проверял сохранение этого поведения.
 
 ### Breaking change
 
 Требует schema major `2`:
 
-- удаление или переименование обязательного поля;
-- изменение типа обязательного поля;
-- изменение смысла существующего поля;
+- removal/rename required field;
+- type/casing/meaning change;
 - удаление enum value;
-- превращение optional field в required;
-- смена casing существующего property;
-- несовместимое изменение container layout.
+- optional → required;
+- incompatible container layout.
 
-Breaking change обязан иметь:
-
-1. новый `$id` и отдельный schema directory;
-2. migration/upgrade guide;
-3. новый golden fixture;
-4. test старого reader rejection;
-5. test нового reader migration или explicit unsupported status;
-6. release note с SemVer impact.
+Breaking change обязан иметь новый `$id`, schema directory, migration guide, fixtures, old-reader rejection test и new-reader migration/unsupported test.
 
 ## Deprecation policy
 
 - stable contract v1 не удаляется молча;
 - deprecation публикуется минимум в одном предыдущем feature release;
-- deprecated field остаётся readable до следующей schema major;
-- writer может прекратить создавать deprecated optional field только после documented notice;
-- reader не должен частично импортировать document из более новой schema;
-- поддержка schema major прекращается только с migration guide или явным `UnsupportedLegacy`.
+- deprecated optional field остаётся readable до следующей schema major;
+- reader не импортирует newer document частично;
+- прекращение поддержки schema/source shape требует migration guide или explicit `UnsupportedLegacy`.
 
 ## Casing
 
-`snapshot.json` исторически сериализуется с PascalCase. Contract v1 сохраняет это, чтобы не ломать `.sdshot` 0.3–0.9.
-
-Comparison report и bundle manifest используют camelCase. Смена casing является breaking change.
+`snapshot.json` исторически PascalCase. Contract v1 сохраняет это для `.sdshot` 0.3–0.9. Comparison report и bundle manifest используют camelCase. Смена casing является breaking change.
 
 ## Writer invariants
 
 ### Snapshot
 
-Обязательны identity, creation metadata, producer version, schema version, profile/status, architecture, provider results и artifacts.
+Identity, creation metadata, producer/schema version, profile/status, architecture, provider results и artifacts обязательны.
 
 ### Comparison report
 
-0.10 добавляет явные поля:
+Writer 0.10+ создаёт:
 
 ```json
 {
   "format": "SysDiff Comparison Report",
   "formatVersion": 1,
   "schemaVersion": 1,
-  "sysDiffVersion": "0.10.0"
+  "sysDiffVersion": "0.11.0"
 }
 ```
 
 ### Investigation bundle
 
-Manifest теперь содержит текущую producer version вместо legacy hard-coded `0.3.0`, а также `schemaVersion: 1`. Writer валидирует manifest через `SchemaContractService` до ZIP packaging.
+Manifest содержит current producer version и `schemaVersion: 1`. Writer self-validates до ZIP packaging.
 
 ## Validation scope
 
-`SchemaContractService` выполняет contract-specific validation:
+`SchemaContractService` проверяет:
 
 - required properties;
-- object/array/string/number/boolean types;
-- UUID;
-- RFC 3339 timestamps;
-- stable SemVer;
-- enum values;
-- numeric ranges;
+- JSON types;
+- UUID и RFC3339;
+- SemVer, включая prerelease+build;
+- enum values и numeric ranges;
 - supported schema version;
-- nested snapshot/provider/artifact/change/privacy structures.
+- nested provider/artifact/change/privacy structures.
 
-Стандартные JSON Schema files остаются source of truth для внешних validators. Embedded copies используются CLI-командой `schema show`.
-
-Validation является read-only. Она не импортирует snapshot, не меняет SQLite, не создаёт case/baseline и не исправляет документ автоматически.
+JSON Schema files являются source of truth для external validators; embedded copies используются `schema show`. Validation read-only и не импортирует/исправляет документ.
 
 ## Reader/writer matrix
 
-| Producer | Snapshot v1 | Comparison v1 | Bundle v1 | Поведение 0.10 reader |
-|---|---:|---:|---:|---|
-| 0.3–0.9 | legacy v1 shape | pre-contract | pre-contract | `.sdshot` читается; reports/bundles не объявляются contract-valid |
-| 0.10 | stable v1 | stable v1 | stable v1 | full validation |
-| future writer, schema 1 | stable v1 + additive fields | stable v1 + additive fields | stable v1 + additive fields | unknown fields accepted |
+| Producer | Snapshot v1 | Comparison | Bundle | Поведение reader 0.11 |
+|---|---|---|---|---|
+| 0.3–0.9 | current-compatible | `UpgradeAvailable` | `UpgradeAvailable` | `.sdshot` читается; report/bundle конвертируются явно |
+| 0.10–0.11 | stable v1 | stable v1 | stable v1 | full validation |
+| future writer, schema 1 | additive v1 | additive v1 | additive v1 | unknown fields accepted |
 | future writer, schema >1 | newer | newer | newer | `RequiresNewerSysDiff` |
 
 ## CI guarantees
 
-`SchemaContractServiceTests` проверяют:
+CI проверяет:
 
-- все embedded schemas являются Draft 2020-12;
-- `$id`, stable status и contract version совпадают с catalog;
-- три golden fixtures валидны;
-- неизвестные fields разрешены;
-- missing required field отклоняется с JSON path;
-- invalid enum отклоняется;
-- future schema version получает `RequiresNewerSysDiff`.
-
-Release smoke дополнительно проверяет CLI catalog, embedded schema output и все golden fixtures через опубликованный `sysdiff.exe`.
+- Draft 2020-12 metadata и `$id` embedded schemas;
+- current golden fixtures;
+- additive fields;
+- missing required/invalid enum/future schema;
+- legacy plan и conversion;
+- backup byte equality;
+- unknown-field preservation;
+- idempotent current no-op;
+- bundle checksum rebuild и nested snapshot byte equality;
+- tampered checksum rejection;
+- release smoke через published EXE.
 
 ## Recovery
 
-При `Invalid`:
+При invalid current document сохраните original, используйте `schema validate --json` и исправляйте только копию.
 
-1. сохраните исходный JSON без изменений;
-2. выполните validation с `--json`;
-3. исправляйте копию, ориентируясь на `issues[].path` и `issues[].code`;
-4. не импортируйте отдельные фрагменты как доверенные данные;
-5. повторно создайте report/bundle исходной версией SysDiff, если она доступна.
-
-При `RequiresNewerSysDiff` обновите SysDiff через stable release channel и повторите validation. Downgrade schema number вручную запрещён: это скрывает неизвестные поля, но не делает их совместимыми.
+При legacy source используйте `legacy plan`, затем `legacy convert --yes`; доверяйте только output, прошедшему `legacy verify`. Не понижайте schema number вручную и не удаляйте automatic backup до завершения проверки.
