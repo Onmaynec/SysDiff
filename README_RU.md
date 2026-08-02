@@ -4,62 +4,46 @@
 
 # 🇷🇺 Русская документация SysDiff
 
-**Основной [`README.md`](README.md) описывает актуальную версию 0.11.0.**
+**Основной [`README.md`](README.md) описывает актуальную версию 0.12.0.**
 
 </div>
 
-## 🌉 Главное изменение 0.11.0
+## 🚀 Главное изменение 0.12.0
 
-SysDiff получил **Legacy Bridge** для безопасного преобразования portable data 0.3–0.9 в Schema Contract v1:
-
-- comparison JSON reports;
-- investigation bundle ZIP;
-- read-only plan;
-- explicit `--yes`;
-- automatic backup;
-- atomic output;
-- SHA-256 audit;
-- сохранение вложенных `.sdshot` byte-for-byte;
-- post-conversion verify.
+Scale Lab добавляет bounded-memory обработку больших NDJSON datasets:
 
 ```powershell
-sysdiff legacy matrix
+sysdiff scale synth .\before.ndjson --count 1000000 --variant before
+sysdiff scale synth .\after.ndjson --count 1000000 --variant after --change-every 1000
+sysdiff scale sort .\unsorted.ndjson --output .\sorted.ndjson
+sysdiff scale compare .\before.ndjson .\after.ndjson --output .\changes.ndjson
+sysdiff scale benchmark --output-dir .\ScaleResults --artifacts 1000000 --json
+```
+
+CI выполняет benchmark на 1 000 000 artifacts и блокирует memory/throughput/count regressions. Подробнее: [docs/SCALE_LAB.md](docs/SCALE_LAB.md).
+
+## 🌉 Legacy Bridge
+
+```powershell
 sysdiff legacy plan comparison .\report-old.json
 sysdiff legacy convert comparison .\report-old.json --yes
 sysdiff legacy verify comparison .\report-old.schema-v1.json
 ```
 
-Подробнее: [docs/LEGACY_BRIDGE.md](docs/LEGACY_BRIDGE.md).
+Portable data 0.3–0.9 преобразуются с backup, SHA-256 audit и atomic output.
 
-## 📐 Schema Contract v1
+## 📐 Schema, migration и compatibility
 
 ```powershell
 sysdiff schema list
-sysdiff schema show snapshot
 sysdiff schema validate comparison .\report.json --json
-```
-
-Unknown additive fields разрешены, future schema блокируется, breaking change требует нового schema major.
-
-## 🗃️ Migration Lab
-
-```powershell
 sysdiff migration status
 sysdiff migration plan
-sysdiff migration history
 sysdiff migration apply --yes
-```
-
-Существующая база не мигрируется при обычном запуске. Apply создаёт backup и выполняется транзакционно.
-
-## 🧩 Compatibility Center
-
-```powershell
-sysdiff compatibility status
 sysdiff compatibility inspect .\before.sdshot
 ```
 
-Inspection проверяет `.sdshot` без записи в SQLite. Legacy Bridge не переписывает уже совместимые snapshot archives.
+Public Schema Contract остаётся v1. SQLite migration и portable conversion не выполняются автоматически.
 
 ## 🔄 Release Channel
 
@@ -72,18 +56,15 @@ sysdiff update install --yes --restart
 ## 📚 Разделы
 
 - [Главная страница](README.md)
+- [Scale Lab](docs/SCALE_LAB.md)
 - [Legacy Bridge](docs/LEGACY_BRIDGE.md)
 - [Schema Contract v1](docs/SCHEMA_CONTRACT.md)
 - [Совместимость](docs/COMPATIBILITY.md)
 - [Migration Lab](docs/MIGRATIONS.md)
-- [Обновления](docs/UPDATES.md)
 - [Команды](docs/COMMANDS.md)
 - [Архитектура](docs/ARCHITECTURE.md)
-- [Переносимые форматы](docs/PORTABLE_FORMATS.md)
-- [Provider SDK](docs/PROVIDER_SDK.md)
-- [Безопасность](docs/SECURITY.md)
 - [Roadmap](docs/ROADMAP.md)
 - [История изменений](CHANGELOG.md)
 
 > [!IMPORTANT]
-> SysDiff не является антивирусом. Версия 0.11.0 пока не имеет Authenticode-подписи; release manifest содержит `unsigned: true`.
+> SysDiff не является антивирусом. Версия 0.12.0 пока не имеет Authenticode-подписи; release manifest содержит `unsigned: true`.

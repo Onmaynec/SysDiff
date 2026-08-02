@@ -1,0 +1,76 @@
+name: Scale benchmark
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  million-artifacts:
+    runs-on: windows-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Получить код
+        uses: actions/checkout@v4
+
+      - name: Установить .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Восстановить зависимости
+        run: dotnet restore SysDiff.sln
+
+      - name: Собрать Scale Lab
+        run: dotnet build SysDiff.sln --configuration Release --no-restore
+
+      - name: Проверить 1 000 000 artifacts
+        shell: pwsh
+        run: |
+          New-Item .\ScaleResults -ItemType Directory -Force | Out-Null
+          dotnet run `
+            --project .\src\SysDiff.Cli\SysDiff.Cli.csproj `
+            --configuration Release `
+            --no-build `
+            -- `
+            scale benchmark `
+            --output-dir .\ScaleResults `
+            --artifacts 1000000 `
+            --change-every 1000 `
+            --max-managed-mb 256 `
+            --min-throughput 1000 `
+            --json | Tee-Object -FilePath .\ScaleResults\console.json
+          if ($LASTEXITCODE -ne 0) {
+            throw "Scale benchmark regression gate завершился с кодом $LASTEXITCODE"
+          }
+
+          $result = Get-Content .\ScaleResults\scale-benchmark.json -Raw | ConvertFrom-Json
+          if (-not $result.passed) {
+            throw "Scale benchmark result.passed=false"
+          }
+          if ([int]$result.artifactCount -ne 1000000) {
+            throw "Ожидался benchmark на 1 000 000 artifacts"
+          }
+          if ([long]$result.actualModified -ne 1000) {
+            throw "Ожидалось 1 000 modified artifacts"
+          }
+          Write-Host "Managed peak: $([math]::Round($result.peakManagedBytes / 1MB, 2)) MiB"
+          Write-Host "Working set: $([math]::Round($result.peakWorkingSetBytes / 1MB, 2)) MiB"
+          Write-Host "Throughput: $([math]::Round($result.throughputArtifactsPerSecond, 0)) artifacts/sec"
+
+      - name: Сохранить benchmark artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scale-benchmark-1000000
+          path: |
+            ScaleResults/scale-benchmark.json
+            ScaleResults/console.json
+            ScaleResults/scale-changes.ndjson
+          if-no-files-found: error
