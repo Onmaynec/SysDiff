@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = "0.9.0",
+    [string]$Version = "0.10.0",
     [string]$Runtime = "win-x64"
 )
 
@@ -24,7 +24,7 @@ if ($Version -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') {
     throw "Версия должна быть стабильной SemVer X.Y.Z: $Version"
 }
 if ($Runtime -ne "win-x64") {
-    throw "Официальный release channel 0.9 поддерживает только win-x64"
+    throw "Официальный release channel 0.10 поддерживает только win-x64"
 }
 
 Remove-Item $publish, $packageRoot, $zipPath, $checksumPath, $manifestPath `
@@ -57,7 +57,16 @@ try {
     Copy-Item .\docs\UPDATES.md (Join-Path $packageRoot "UPDATES.txt")
     Copy-Item .\docs\COMPATIBILITY.md (Join-Path $packageRoot "COMPATIBILITY.txt")
     Copy-Item .\docs\MIGRATIONS.md (Join-Path $packageRoot "MIGRATIONS.txt")
+    Copy-Item .\docs\SCHEMA_CONTRACT.md (Join-Path $packageRoot "SCHEMA_CONTRACT.txt")
     Copy-Item .\samples\profiles (Join-Path $packageRoot "profiles") -Recurse
+
+    $schemaDestination = Join-Path $packageRoot "schemas\public\v1"
+    $fixtureDestination = Join-Path $packageRoot "schema-fixtures\v1"
+    New-Item $schemaDestination -ItemType Directory -Force | Out-Null
+    New-Item $fixtureDestination -ItemType Directory -Force | Out-Null
+    Copy-Item .\schemas\public\v1\*.schema.json $schemaDestination
+    Copy-Item .\tests\fixtures\schema\v1\*.json $fixtureDestination
+
     New-Item (Join-Path $packageRoot "portable.mode") -ItemType File | Out-Null
 
     Compress-Archive -Path "$packageRoot\*" -DestinationPath $zipPath -CompressionLevel Optimal
@@ -94,6 +103,7 @@ try {
     Write-Host "✅ Архив: $zipPath" -ForegroundColor Green
     Write-Host "🔐 SHA-256: $hash" -ForegroundColor Green
     Write-Host "📜 Manifest: $manifestPath" -ForegroundColor Green
+    Write-Host "📐 Schema Contract: public v1 + golden fixtures" -ForegroundColor Green
     Write-Host "⚠️  Authenticode: unsigned build (сертификат пока не настроен)" -ForegroundColor Yellow
 }
 finally {
