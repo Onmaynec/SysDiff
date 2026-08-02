@@ -1,147 +1,102 @@
-# 🧩 Совместимость SysDiff 0.11.0
+# 🧩 Совместимость SysDiff 0.12.0
 
-SysDiff использует четыре независимых уровня защиты данных:
+SysDiff использует пять независимых data mechanisms:
 
-- **Legacy Bridge** преобразует документированные portable shapes 0.3–0.9;
-- **Schema Contract Center** проверяет JSON shape и semantics;
-- **Compatibility Center** проверяет `.sdshot` container и reader range;
-- **Migration Lab** проверяет и обновляет SQLite database.
+- **Scale Lab** обрабатывает operational NDJSON streams;
+- **Legacy Bridge** преобразует documented portable shapes 0.3–0.9;
+- **Schema Contract Center** проверяет public JSON shape;
+- **Compatibility Center** проверяет `.sdshot` container;
+- **Migration Lab** обновляет SQLite database.
 
-## Команды
+## Matrix
 
-```powershell
-sysdiff legacy matrix --json
-sysdiff legacy plan comparison .\old-report.json --json
-sysdiff schema list --json
-sysdiff schema validate comparison .\report.json --json
-sysdiff compatibility inspect .\before.sdshot --json
-sysdiff migration plan --json
-```
-
-## Reader/writer matrix
-
-| Объект | Writer | Reader | Legacy path | Поведение |
+| Объект | Current version | Reader | Upgrade/normalization | Поведение |
 |---|---:|---:|---|---|
+| Scale Artifact NDJSON | 1 | 1 | `scale sort` | sorted unique identity required |
+| Scale change NDJSON | 1 | 1 | не требуется | streamed operational output |
 | snapshot JSON contract | 1 | 1 | не требуется | additive fields accepted |
-| comparison JSON contract | 1 | 1 | pre-0.10 report → v1 | future schema rejected |
-| bundle manifest/report | 1 | 1 | pre-0.10 ZIP → v1 | future schema rejected |
+| comparison JSON contract | 1 | 1 | pre-0.10 → Legacy Bridge | future schema rejected |
+| bundle manifest/report | 1 | 1 | pre-0.10 → Legacy Bridge | future schema rejected |
 | `.sdshot` container | 1 | 1 | byte-preserved | ZIP/hash/invariants checked |
 | SQLite `user_version` | 9 | `0..9` | Migration Lab | `>9` rejected before init |
 | release manifest | 1 | 1 | не требуется | official host/hash required |
 
-Public JSON schema major `1` не равен SQLite `user_version=9` и не означает product version 1.0.
+Scale format `1`, public schema `1`, `.sdshot` format `1`, SQLite `9` и product `0.12.0` являются разными version lines.
 
-## Producer compatibility
+## Scale stream rules
+
+`scale compare` принимает NDJSON, отсортированный по `identity` с `OrdinalIgnoreCase` ordering.
+
+Отклоняются:
+
+- invalid JSON;
+- missing/empty identity;
+- duplicate identity;
+- descending identity order;
+- line больше 4 MiB.
+
+`scale sort` выполняет bounded-memory normalization через chunks и atomic output. Scale NDJSON не импортируется в SQLite автоматически и не считается public portable evidence format.
+
+## Portable producer compatibility
 
 | Producer | `.sdshot` | Comparison report | Investigation bundle |
 |---|---|---|---|
 | 0.3–0.9 | readable schema 1 | `UpgradeAvailable` | `UpgradeAvailable` |
-| 0.10–0.11 | current contract v1 | current contract v1 | current contract v1 |
+| 0.10–0.12 | current contract v1 | current contract v1 | current contract v1 |
 | future, schema 1 + optional fields | readable | readable | readable |
 | future, schema >1 | `RequiresNewerSysDiff` | `RequiresNewerSysDiff` | `RequiresNewerSysDiff` |
 
 ## Legacy Bridge statuses
 
-- `Current` — portable data уже соответствует contract v1;
-- `UpgradeAvailable` — распознан безопасный handler 0.3–0.9;
-- `RequiresNewerSysDiff` — source использует future schema;
-- `UnsupportedLegacy` — old shape не имеет документированного handler;
-- `Invalid` — JSON/ZIP/checksum/required fields повреждены.
+- `Current`;
+- `UpgradeAvailable`;
+- `RequiresNewerSysDiff`;
+- `UnsupportedLegacy`;
+- `Invalid`.
 
-Plan read-only. Convert требует `--yes`, создаёт backup, пишет атомарно и повторно проверяет output. Current conversion является no-op.
-
-### Что преобразуется
-
-Comparison report получает отсутствующие contract metadata и provenance. Старый report не содержит producer version, поэтому используется `0.0.0-legacy`.
-
-Bundle получает schema metadata в manifest/report и новый `checksums.sha256`. Вложенные `.sdshot` сохраняются byte-for-byte.
-
-### Что не преобразуется
-
-- future schema;
-- произвольный повреждённый JSON;
-- unknown ZIP layout;
-- `.sdshot`, уже читаемый Compatibility Center;
-- SQLite database.
+Plan read-only. Convert требует `--yes`, backup, atomic output и post-validation. Current conversion — no-op.
 
 ## Schema Contract statuses
 
-- `Valid` — required/type/format/enum checks пройдены;
-- `Invalid` — contract нарушен;
-- `RequiresNewerSysDiff` — schema version выше reader.
+- `Valid`;
+- `Invalid`;
+- `RequiresNewerSysDiff`.
 
-Unknown additive properties разрешены. Они не должны превращать valid schema 1 document в invalid.
+Unknown additive properties разрешены. Breaking required/type/casing/meaning change требует schema major `2`.
 
-## `.sdshot` statuses
+## `.sdshot` и SQLite
 
-- `Compatible` — archive integrity и reader range valid;
-- `RequiresNewerSysDiff` — format/schema newer;
-- `UnsupportedLegacy` — отсутствует migration path;
-- `Invalid` — ZIP, JSON, checksum или invariants повреждены.
-
-Inspection read-only и не сохраняет snapshot.
-
-## SQLite statuses
-
-- `Current` — integrity и ledger актуальны;
-- `MigrationRequired` — известен safe path;
-- `RequiresNewerSysDiff` — future user_version или unknown migration ID;
-- `Invalid` — integrity/ledger inconsistent.
-
-Existing database migration требует `migration apply --yes`, verified backup и transaction.
-
-## SemVer и schema versioning
-
-### Product SemVer
-
-- patch: bug fix без изменения public contract;
-- minor: additive feature, optional property или новый migration handler;
-- major: несовместимое product/API behavior.
-
-### Schema major
-
-- optional additive property остаётся schema `1`;
-- required/type/casing/meaning change требует schema `2`;
-- schema `2` обязана иметь отдельный `$id`, fixtures и migration guide.
-
-## Deprecation
-
-- stable field не удаляется без previous feature-release notice;
-- deprecated optional field остаётся readable до следующей schema major;
-- old reader не импортирует newer document частично;
-- прекращение поддержки source shape требует migration guide или explicit `UnsupportedLegacy`.
+Compatibility inspection не сохраняет snapshot. SQLite migration требует `migration apply --yes`, verified backup и transaction.
 
 ## CI guarantees
 
 CI проверяет:
 
 - embedded schemas и golden fixtures;
-- legacy comparison fixture;
-- unknown extension preservation;
-- backup byte equality;
-- current-file idempotency;
-- future schema rejection;
-- bundle checksum rebuild;
-- nested snapshot byte equality;
-- tampered checksum rejection до backup;
-- release smoke `plan → convert → verify` через self-contained EXE.
+- legacy fixture и conversion safety;
+- Scale unit tests;
+- unsorted/duplicate rejection;
+- release smoke через published EXE;
+- Scale benchmark на 1 000 000 artifacts;
+- managed-memory, throughput и expected-change gates;
+- benchmark artifact publication.
 
 ## Recovery
 
-### Failed legacy conversion
+### Scale failure
 
-1. сохраните source и automatic backup;
-2. используйте только output, прошедший `legacy verify`;
-3. сравните source/output SHA-256 из JSON result;
-4. не понижайте schema version вручную;
-5. при in-place сомнении восстановите backup.
+1. не изменяйте source NDJSON;
+2. при unsorted error выполните `scale sort` в новый файл;
+3. исправьте duplicate identity в producer;
+4. используйте `scale-benchmark.json` для memory/throughput diagnosis;
+5. не объединяйте partial temporary outputs.
 
-### Invalid `.sdshot`
+### Portable failure
 
-Проверьте SHA-256 источника и повторно экспортируйте snapshot. Не импортируйте извлечённый `snapshot.json` в обход container checks.
+Сохраните source/backup, используйте только output после `legacy verify`, не понижайте schema вручную.
 
-### SQLite problem
+### SQLite failure
 
-Закройте SysDiff, сохраните database, восстановите verified backup из `backups\migrations`, затем выполните `migration status` и `migration plan`.
+Закройте процессы SysDiff, восстановите verified migration backup, затем выполните `migration status` и `migration plan`.
 
-Подробнее: [LEGACY_BRIDGE.md](LEGACY_BRIDGE.md), [SCHEMA_CONTRACT.md](SCHEMA_CONTRACT.md) и [MIGRATIONS.md](MIGRATIONS.md).
+Подробнее: [SCALE_LAB.md](SCALE_LAB.md), [LEGACY_BRIDGE.md](LEGACY_BRIDGE.md), [SCHEMA_CONTRACT.md](SCHEMA_CONTRACT.md) и [MIGRATIONS.md](MIGRATIONS.md).
