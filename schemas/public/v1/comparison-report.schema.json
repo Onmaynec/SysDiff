@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.sysdiff.dev/v1/comparison-report.schema.json",
+  "title": "SysDiff Comparison Report Schema Contract v1",
+  "description": "Stable public contract for SysDiff JSON comparison reports.",
+  "type": "object",
+  "required": [
+    "format",
+    "formatVersion",
+    "schemaVersion",
+    "sysDiffVersion",
+    "generatedAtUtc",
+    "before",
+    "after",
+    "comparison"
+  ],
+  "properties": {
+    "format": { "const": "SysDiff Comparison Report" },
+    "formatVersion": { "const": 1 },
+    "schemaVersion": { "const": 1 },
+    "sysDiffVersion": { "$ref": "#/$defs/semver" },
+    "generatedAtUtc": { "type": "string", "format": "date-time" },
+    "before": { "$ref": "#/$defs/snapshotSummary" },
+    "after": { "$ref": "#/$defs/snapshotSummary" },
+    "comparison": { "$ref": "#/$defs/comparison" }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "uuid": { "type": "string", "format": "uuid" },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:[-+][0-9A-Za-z.-]+)?$"
+    },
+    "snapshotStatus": {
+      "type": "string",
+      "enum": ["InProgress", "Completed", "Partial", "Failed", "Cancelled", "Corrupted"]
+    },
+    "noiseMode": {
+      "type": "string",
+      "enum": ["Raw", "Balanced", "Strict"]
+    },
+    "changeType": {
+      "type": "string",
+      "enum": ["Added", "Removed", "Modified", "Unchanged", "Moved", "Renamed", "Unknown"]
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["Info", "Low", "Medium", "High", "Critical"]
+    },
+    "artifactValue": {
+      "type": "object",
+      "required": ["type", "redacted"],
+      "properties": {
+        "value": { "type": ["string", "null"] },
+        "type": { "type": "string", "minLength": 1 },
+        "redacted": { "type": "boolean" },
+        "hash": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["providerId", "artifactType", "identity", "displayName", "properties", "tags"],
+      "properties": {
+        "providerId": { "type": "string", "minLength": 1 },
+        "artifactType": { "type": "string", "minLength": 1 },
+        "identity": { "type": "string", "minLength": 1 },
+        "displayName": { "type": "string", "minLength": 1 },
+        "properties": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/artifactValue" }
+        },
+        "tags": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+      },
+      "additionalProperties": true
+    },
+    "propertyChange": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "before": { "oneOf": [{ "$ref": "#/$defs/artifactValue" }, { "type": "null" }] },
+        "after": { "oneOf": [{ "$ref": "#/$defs/artifactValue" }, { "type": "null" }] }
+      },
+      "additionalProperties": true
+    },
+    "change": {
+      "type": "object",
+      "required": [
+        "id",
+        "changeType",
+        "providerId",
+        "artifactType",
+        "identity",
+        "displayName",
+        "changedProperties",
+        "severity",
+        "explanation",
+        "whyThisMatters",
+        "tags",
+        "confidence",
+        "isNoise"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "changeType": { "$ref": "#/$defs/changeType" },
+        "providerId": { "type": "string", "minLength": 1 },
+        "artifactType": { "type": "string", "minLength": 1 },
+        "identity": { "type": "string", "minLength": 1 },
+        "displayName": { "type": "string", "minLength": 1 },
+        "before": { "oneOf": [{ "$ref": "#/$defs/artifact" }, { "type": "null" }] },
+        "after": { "oneOf": [{ "$ref": "#/$defs/artifact" }, { "type": "null" }] },
+        "changedProperties": { "type": "array", "items": { "$ref": "#/$defs/propertyChange" } },
+        "severity": { "$ref": "#/$defs/severity" },
+        "explanation": { "type": "string" },
+        "whyThisMatters": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "isNoise": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "snapshotSummary": {
+      "type": "object",
+      "required": ["id", "name", "createdAtUtc", "profileName", "status"],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "name": { "type": "string", "minLength": 1 },
+        "createdAtUtc": { "type": "string", "format": "date-time" },
+        "profileName": { "type": "string", "minLength": 1 },
+        "status": { "$ref": "#/$defs/snapshotStatus" }
+      },
+      "additionalProperties": true
+    },
+    "comparison": {
+      "type": "object",
+      "required": [
+        "id",
+        "beforeSnapshotId",
+        "afterSnapshotId",
+        "createdAtUtc",
+        "noiseMode",
+        "crossMachine",
+        "warnings",
+        "changes",
+        "hiddenAsNoise"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "beforeSnapshotId": { "$ref": "#/$defs/uuid" },
+        "afterSnapshotId": { "$ref": "#/$defs/uuid" },
+        "createdAtUtc": { "type": "string", "format": "date-time" },
+        "noiseMode": { "$ref": "#/$defs/noiseMode" },
+        "crossMachine": { "type": "boolean" },
+        "warnings": { "type": "array", "items": { "type": "string" } },
+        "changes": { "type": "array", "items": { "$ref": "#/$defs/change" } },
+        "hiddenAsNoise": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    }
+  },
+  "x-sysdiff-contract": {
+    "version": 1,
+    "stability": "stable",
+    "introducedIn": "0.10.0",
+    "additionalPropertiesPolicy": "allowed",
+    "breakingChangePolicy": "requires schema major version"
+  }
+}
