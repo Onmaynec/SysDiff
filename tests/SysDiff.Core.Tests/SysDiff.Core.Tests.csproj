@@ -23,5 +23,8 @@
     <None Include="..\fixtures\schema\v1\*.json"
           Link="Fixtures\v1\%(Filename)%(Extension)"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\fixtures\legacy\v0.9\*.json"
+          Link="Fixtures\legacy\v0.9\%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

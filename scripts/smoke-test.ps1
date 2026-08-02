@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Executable = ".\artifacts\publish\win-x64\sysdiff.exe",
-    [string]$ExpectedVersion = "0.10.0"
+    [string]$ExpectedVersion = "0.11.0"
 )
 
 $ErrorActionPreference = "Stop"
@@ -25,21 +25,76 @@ if (-not $fileVersion.StartsWith($ExpectedVersion, [System.StringComparison]::Or
 }
 
 $helpOutput = (& $Executable --help | Out-String)
-if ($LASTEXITCODE -ne 0 -or $helpOutput -notmatch "SCHEMA CONTRACT CENTER 0.10") {
-    throw "Команда --help не содержит Schema Contract Center 0.10"
+if ($LASTEXITCODE -ne 0 -or $helpOutput -notmatch "LEGACY BRIDGE 0.11") {
+    throw "Команда --help не содержит Legacy Bridge 0.11"
 }
-if ($helpOutput -notmatch "schema validate" -or
+if ($helpOutput -notmatch "legacy convert" -or
+    $helpOutput -notmatch "SCHEMA CONTRACT CENTER 0.10" -or
+    $helpOutput -notmatch "schema validate" -or
     $helpOutput -notmatch "MIGRATION LAB 0.9" -or
     $helpOutput -notmatch "migration apply --yes" -or
     $helpOutput -notmatch "compatibility inspect" -or
     $helpOutput -notmatch "update install --yes" -or
     $helpOutput -notmatch "DRIFT OPERATIONS 0.6") {
-    throw "Команда --help не содержит schema, migration, compatibility, updater и Drift Operations"
+    throw "Команда --help не содержит legacy, schema, migration, compatibility, updater и Drift Operations"
+}
+
+$legacyMatrix = (& $Executable legacy matrix --json | Out-String)
+if ($LASTEXITCODE -ne 0 -or
+    $legacyMatrix -notmatch '"productVersion": "0.11.0"' -or
+    $legacyMatrix -notmatch '"targetSchemaVersion": 1' -or
+    $legacyMatrix -notmatch '"sourceRange": "0.3.0-0.9.x"' -or
+    $legacyMatrix -notmatch '"automaticBackup": true' -or
+    $legacyMatrix -notmatch '"postConversionValidation": true') {
+    throw "Команда legacy matrix --json не прошла smoke-проверку"
+}
+
+$legacySmoke = Join-Path $root "artifacts\smoke-legacy"
+Remove-Item $legacySmoke -Recurse -Force -ErrorAction SilentlyContinue
+New-Item $legacySmoke -ItemType Directory -Force | Out-Null
+try {
+    $legacyInput = Join-Path $legacySmoke "comparison-legacy.json"
+    $legacyOutput = Join-Path $legacySmoke "comparison-v1.json"
+    Copy-Item (Join-Path $root "tests\fixtures\legacy\v0.9\comparison-report.legacy.json") $legacyInput
+
+    $legacyPlan = (& $Executable legacy plan comparison $legacyInput --json | Out-String)
+    if ($LASTEXITCODE -ne 0 -or
+        $legacyPlan -notmatch '"status": "UpgradeAvailable"' -or
+        $legacyPlan -notmatch '"requiresBackup": true' -or
+        $legacyPlan -notmatch '0.11.0-comparison-contract-v1') {
+        throw "Legacy comparison plan не прошёл smoke-проверку"
+    }
+
+    $legacyConvert = (& $Executable legacy convert comparison $legacyInput --output $legacyOutput --yes --json | Out-String)
+    if ($LASTEXITCODE -ne 0 -or
+        $legacyConvert -notmatch '"success": true' -or
+        $legacyConvert -notmatch '"changed": true' -or
+        $legacyConvert -notmatch '"statusAfter": "Current"' -or
+        $legacyConvert -notmatch '"backupPath":') {
+        throw "Legacy comparison conversion не прошёл smoke-проверку"
+    }
+    if (-not (Test-Path $legacyOutput)) {
+        throw "Legacy Bridge не создал output"
+    }
+    $backups = @(Get-ChildItem $legacySmoke -Filter "*.legacy-backup-*.json")
+    if ($backups.Count -ne 1) {
+        throw "Legacy Bridge должен создать ровно один backup"
+    }
+
+    $legacyVerify = (& $Executable legacy verify comparison $legacyOutput --json | Out-String)
+    if ($LASTEXITCODE -ne 0 -or
+        $legacyVerify -notmatch '"status": "Current"' -or
+        $legacyVerify -notmatch '"sourceShape": "comparison-report-v1"') {
+        throw "Преобразованный comparison report не прошёл legacy verify"
+    }
+}
+finally {
+    Remove-Item $legacySmoke -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 $schemaCatalog = (& $Executable schema list --json | Out-String)
 if ($LASTEXITCODE -ne 0 -or
-    $schemaCatalog -notmatch '"productVersion": "0.10.0"' -or
+    $schemaCatalog -notmatch '"productVersion": "0.11.0"' -or
     $schemaCatalog -notmatch '"contractVersion": 1' -or
     $schemaCatalog -notmatch '"jsonSchemaDraft": "2020-12"' -or
     $schemaCatalog -notmatch '"key": "snapshot"' -or
@@ -89,7 +144,7 @@ if ($LASTEXITCODE -ne 0 -or
 
 $compatibilityStatus = (& $Executable compatibility status --json | Out-String)
 if ($LASTEXITCODE -ne 0 -or
-    $compatibilityStatus -notmatch '"productVersion": "0.10.0"' -or
+    $compatibilityStatus -notmatch '"productVersion": "0.11.0"' -or
     $compatibilityStatus -notmatch '"currentFormatVersion": 1' -or
     $compatibilityStatus -notmatch '"currentSchemaVersion": 1') {
     throw "Команда compatibility status --json не прошла smoke-проверку"
@@ -112,7 +167,7 @@ if ($LASTEXITCODE -ne 0 -or $caseOutput -notmatch "Кейсов пока нет"
 
 $updateStatus = (& $Executable update status --json | Out-String)
 if ($LASTEXITCODE -ne 0 -or
-    $updateStatus -notmatch '"currentVersion": "0.10.0"' -or
+    $updateStatus -notmatch '"currentVersion": "0.11.0"' -or
     $updateStatus -notmatch '"status":') {
     throw "Команда update status --json не прошла smoke-проверку"
 }
@@ -134,14 +189,14 @@ finally {
     Remove-Item Env:SYSDIFF_NO_ANIMATIONS -ErrorAction SilentlyContinue
     Remove-Item Env:NO_COLOR -ErrorAction SilentlyContinue
 }
-if ($LASTEXITCODE -ne 0 -or $tuiOutput -notmatch "SYSDIFF CYBER CONSOLE 0.10.0") {
+if ($LASTEXITCODE -ne 0 -or $tuiOutput -notmatch "SYSDIFF CYBER CONSOLE 0.11.0") {
     throw "Cyber Console smoke frame не сформирован"
 }
-if ($tuiOutput -notmatch "SCHEMA CONTRACT CENTER" -or
-    $tuiOutput -notmatch "SCHEMA: V1 STABLE" -or
-    $tuiOutput -notmatch "ADDITIVE: ALLOW" -or
-    $tuiOutput -notmatch "BREAKING: MAJOR") {
-    throw "Smoke frame не содержит ключевые блоки Schema Contract Center"
+if ($tuiOutput -notmatch "LEGACY BRIDGE" -or
+    $tuiOutput -notmatch "SOURCE: 0.3-0.9" -or
+    $tuiOutput -notmatch "OUTPUT: ATOMIC" -or
+    $tuiOutput -notmatch "SNAPSHOTS: PRESERVE") {
+    throw "Smoke frame не содержит ключевые блоки Legacy Bridge"
 }
 
-Write-Host "✅ Smoke-тест SysDiff $ExpectedVersion и Schema Contract v1 пройден." -ForegroundColor Green
+Write-Host "✅ Smoke-тест SysDiff $ExpectedVersion и Legacy Bridge пройден." -ForegroundColor Green

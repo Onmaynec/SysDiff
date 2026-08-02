@@ -1,4 +1,4 @@
-# ⌨️ Команды SysDiff 0.10.0
+# ⌨️ Команды SysDiff 0.11.0
 
 ## Общие команды
 
@@ -8,6 +8,55 @@ sysdiff --help
 sysdiff --version
 sysdiff doctor
 sysdiff --tui-smoke
+```
+
+## Legacy Bridge
+
+### Matrix
+
+```powershell
+sysdiff legacy matrix
+sysdiff legacy matrix --json
+```
+
+Aliases верхнего уровня: `upgrade`, `bridge`.
+
+### Read-only plan и status
+
+```powershell
+sysdiff legacy status comparison .\report-old.json
+sysdiff legacy plan comparison .\report-old.json --json
+sysdiff legacy status bundle .\investigation-old.zip
+sysdiff legacy plan bundle .\investigation-old.zip --json
+```
+
+Статусы: `Current`, `UpgradeAvailable`, `RequiresNewerSysDiff`, `UnsupportedLegacy`, `Invalid`.
+
+### Verify
+
+```powershell
+sysdiff legacy verify comparison .\report-v1.json
+sysdiff legacy verify bundle .\investigation-v1.zip --json
+```
+
+`verify` возвращает exit code `0` только для `Current`. Файл, который можно преобразовать, но ещё не преобразован, возвращает `4`.
+
+### Convert
+
+```powershell
+sysdiff legacy convert comparison .\report-old.json --yes
+sysdiff legacy convert comparison .\report-old.json `
+  --output .\report-v1.json --yes
+sysdiff legacy convert bundle .\investigation-old.zip --yes --json
+```
+
+Без `--output` создаётся `<name>.schema-v1.<ext>`. Existing output требует `--overwrite`; conversion всегда требует `--yes` и создаёт backup исходника.
+
+In-place conversion:
+
+```powershell
+sysdiff legacy convert comparison .\report-old.json `
+  --output .\report-old.json --overwrite --yes
 ```
 
 ## Schema Contract Center
@@ -31,8 +80,6 @@ sysdiff schema show comparison
 sysdiff schema show bundle
 ```
 
-Вывод является полным Draft 2020-12 JSON Schema из embedded resource.
-
 ### Проверить документ
 
 ```powershell
@@ -40,11 +87,6 @@ sysdiff schema validate snapshot .\snapshot.json
 sysdiff schema validate snapshot .\snapshot.json --json
 sysdiff schema validate comparison .\report.json --json
 sysdiff schema validate bundle .\manifest.json --json
-```
-
-Aliases:
-
-```powershell
 sysdiff schema verify snapshot .\snapshot.json
 sysdiff contract verify bundle .\manifest.json
 ```
@@ -93,7 +135,7 @@ sysdiff update install --yes --restart
 sysdiff update settings
 sysdiff update settings --auto-check true --interval-hours 24
 sysdiff update settings --auto-download false
-sysdiff update settings --ignore 0.10.0
+sysdiff update settings --ignore 0.11.0
 sysdiff update settings --ignore none
 sysdiff update clear-cache
 ```
@@ -134,7 +176,7 @@ sysdiff snapshot export <name-or-id> --output .\before.sdshot
 sysdiff snapshot import .\before.sdshot
 ```
 
-После export можно извлечь `snapshot.json` и проверить его через `schema validate snapshot`. Перед import внешнего архива используйте `compatibility inspect`.
+Перед import внешнего архива используйте `compatibility inspect`. `.sdshot` 0.3–0.9 не требует Legacy Bridge, потому что snapshot schema остаётся `1`.
 
 ## Сравнение и reports
 
@@ -147,7 +189,7 @@ sysdiff compare before after --format json --output .\report.json
 sysdiff compare pc-a pc-b --cross-machine
 ```
 
-JSON report 0.10 соответствует comparison Schema Contract v1.
+JSON report 0.10+ соответствует comparison Schema Contract v1. Reports 0.3–0.9 преобразуются через Legacy Bridge.
 
 ## Watch и Live Monitor
 
@@ -169,7 +211,7 @@ sysdiff bundle create <comparison-id>
 sysdiff bundle create <comparison-id> --output .\investigation.zip
 ```
 
-Bundle manifest self-validates against public schema v1 до ZIP packaging.
+Bundle 0.10+ self-validates against public schema v1. Bundle 0.3–0.9 можно преобразовать через `legacy convert bundle`.
 
 ## Профили и плагины
 
@@ -193,11 +235,11 @@ sysdiff config path
 
 | Код | Значение |
 |---:|---|
-| 0 | успех / schema valid |
+| 0 | успех / current / upgrade plan available |
 | 1 | общая, сетевая или update-ошибка |
-| 2 | некорректные аргументы или TUI unavailable |
+| 2 | некорректные аргументы, отсутствует `--yes` или TUI unavailable |
 | 3 | snapshot/baseline не найдены |
-| 4 | schema invalid/future или несовместимый portable format |
+| 4 | legacy/schema invalid, future, unsupported или несовместимый portable format |
 | 5 | доступ запрещён |
 | 7 | partial snapshot или безопасный timeout |
 | 8 | отменено |

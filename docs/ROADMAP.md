@@ -42,25 +42,31 @@ Dry-run database plan, verified backup, transaction rollback, history, lock и f
 
 ### 0.10.0 — Schema Contract ✅
 
-- [x] Draft 2020-12 schemas для snapshot, comparison и bundle;
-- [x] stable public contract major 1;
-- [x] embedded schema catalog;
-- [x] CLI validation и machine-readable issues;
-- [x] golden fixtures;
-- [x] additive extension policy;
-- [x] future schema rejection;
-- [x] reader/writer matrix;
-- [x] deprecation и breaking-change policy;
-- [x] self-validating bundle writer;
-- [x] offline schemas/fixtures в portable package.
+Draft 2020-12 schemas, stable contract major 1, CLI validation, golden fixtures, reader/writer matrix и deprecation policy.
+
+### 0.11.0 — Legacy Bridge ✅
+
+- [x] portable upgrade plan и machine-readable statuses;
+- [x] legacy comparison report handler 0.3–0.9;
+- [x] legacy investigation bundle handler 0.3–0.9;
+- [x] explicit `--yes` conversion;
+- [x] automatic source backup;
+- [x] atomic output и post-validation;
+- [x] source/output SHA-256 audit;
+- [x] bundle checksum rebuild;
+- [x] nested `.sdshot` byte preservation;
+- [x] current-file idempotent no-op;
+- [x] future/unknown legacy rejection;
+- [x] legacy fixture, integration tests и release smoke.
 
 ## Путь к product 1.0
 
 ### Data evolution
 
+- [x] tested upgrade chain для документированных portable formats 0.3–0.9;
+- [x] comparison/bundle legacy fixtures и handlers;
 - [ ] реальные migration handlers для будущего schema major 2;
-- [ ] tested upgrade chain для всех поддерживаемых legacy formats;
-- [ ] compatibility fixtures реальных exports 0.3–0.9;
+- [ ] archival fixtures, полученные из каждого tagged historical release;
 - [ ] rollback preview для системных изменений.
 
 ### Release trust
@@ -84,7 +90,7 @@ Product 1.0 требует одновременно:
 - stable public Schema Contract v1 ✅;
 - documented compatibility policy ✅;
 - safe database migration foundation ✅;
-- tested legacy upgrade paths;
+- tested documented legacy upgrade paths ✅;
 - Authenticode signed releases;
 - performance targets для large snapshots;
 - complete localization/support documentation.

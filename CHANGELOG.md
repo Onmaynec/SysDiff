@@ -12,6 +12,53 @@
 - оптимизация больших snapshots;
 - полная RU/EN localization.
 
+## [0.11.0] — 2026-08-02
+
+### Добавлено
+
+- Legacy Bridge с командами `legacy matrix|status|plan|verify|convert`;
+- aliases `upgrade` и `bridge`;
+- `PortableUpgradeService` и public plan/result models;
+- handlers comparison reports и investigation bundles 0.3–0.9;
+- статусы `Current`, `UpgradeAvailable`, `RequiresNewerSysDiff`, `UnsupportedLegacy`, `Invalid`;
+- automatic source backup;
+- source/output SHA-256 audit;
+- atomic output и post-conversion verification;
+- migration provenance в преобразованных JSON documents;
+- documented sentinel `0.0.0-legacy` для неизвестной producer version;
+- integration tests backup, no-op, future schema, checksum tampering и snapshot preservation;
+- документация `docs/LEGACY_BRIDGE.md`;
+- legacy fixture в portable package.
+
+### Изменено
+
+- версия продукта, EXE, package и smoke-test обновлена до `0.11.0`;
+- current Schema Contract writer version синхронизируется с `SysDiffProduct.Version`;
+- bundle conversion пересчитывает SHA-256 каждого payload entry;
+- release smoke выполняет реальный flow `plan → convert → backup check → verify`;
+- command chain расширена до `V11 → V10 → V9 → V8 → V7 → V6 → V4 → V3`.
+
+### Совместимость
+
+- public Schema Contract остаётся major `1`;
+- `.sdshot` format/schema остаются `1` и не переписываются;
+- SQLite `user_version` остаётся `9`;
+- supported legacy source range: `0.3.0–0.9.x`;
+- future schema не downgrades;
+- unknown legacy shape не repair-ится автоматически;
+- current v1 conversion является безопасным no-op.
+
+### Безопасность
+
+- plan read-only;
+- conversion требует `--yes`;
+- существующий output требует `--overwrite`;
+- backup создаётся до первой записи;
+- ZIP paths, duplicates, required entries и checksums проверяются до conversion;
+- output пишется через temporary file и atomic move;
+- failed post-validation удаляет side-by-side output или восстанавливает in-place source;
+- преобразованный файл не импортируется автоматически.
+
 ## [0.10.0] — 2026-08-02
 
 ### Добавлено

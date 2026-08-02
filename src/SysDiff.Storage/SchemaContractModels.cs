@@ -1,3 +1,5 @@
+using SysDiff.Domain;
+
 namespace SysDiff.Storage;
 
 public enum SchemaContractKind
@@ -26,7 +28,7 @@ public sealed record SchemaContractDescriptor
 
     public required string FileName { get; init; }
 
-    public int SchemaVersion { get; init; } = 1;
+    public int SchemaVersion { get; init; } = SysDiffProduct.PublicSchemaVersion;
 
     public string JsonSchemaDraft { get; init; } = "2020-12";
 
@@ -34,7 +36,7 @@ public sealed record SchemaContractDescriptor
 
     public string MinimumReaderVersion { get; init; } = "0.10.0";
 
-    public string CurrentWriterVersion { get; init; } = "0.10.0";
+    public string CurrentWriterVersion { get; init; } = SysDiffProduct.Version;
 
     public bool AllowsAdditionalProperties { get; init; } = true;
 }
