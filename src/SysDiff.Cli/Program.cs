@@ -14,6 +14,7 @@ internal static class Program
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         AppPaths paths = AppPaths.Resolve();
+        bool databaseExisted = File.Exists(paths.DatabasePath);
 
         string[] cleanArgs;
         IReadOnlyList<ISnapshotProvider> pluginProviders;
@@ -63,6 +64,9 @@ internal static class Program
         services.AddSingleton<MarkdownReportRenderer>();
         services.AddSingleton<HtmlReportRenderer>();
 
+        services.AddSingleton(_ => new DatabaseMigrationService(
+            paths.DatabasePath,
+            Path.Combine(paths.DataDirectory, "backups", "migrations")));
         services.AddSingleton<ISnapshotStore>(_ =>
             new SqliteSnapshotStore(paths.DatabasePath));
         services.AddSingleton<IInvestigationStore>(_ =>
@@ -100,14 +104,30 @@ internal static class Program
         services.AddSingleton<V6CommandRouter>();
         services.AddSingleton<V7CommandRouter>();
         services.AddSingleton<V8CommandRouter>();
+        services.AddSingleton<V9CommandRouter>();
         services.AddSingleton<CommandApp>();
 
         await using ServiceProvider provider = services.BuildServiceProvider();
+
+        DatabaseMigrationService migrationService =
+            provider.GetRequiredService<DatabaseMigrationService>();
+        await migrationService.ValidateReadableAsync(CancellationToken.None);
 
         ISnapshotStore store = provider.GetRequiredService<ISnapshotStore>();
         await store.InitializeAsync(CancellationToken.None);
         IInvestigationStore investigationStore = provider.GetRequiredService<IInvestigationStore>();
         await investigationStore.InitializeAsync(CancellationToken.None);
+
+        if (!databaseExisted)
+        {
+            DatabaseMigrationResult bootstrap = await migrationService
+                .BootstrapNewDatabaseAsync(CancellationToken.None);
+            if (!bootstrap.Success)
+            {
+                throw new InvalidDataException(
+                    $"Не удалось подготовить новую базу Migration Lab: {bootstrap.Message}");
+            }
+        }
 
         if (interactiveLaunch && !IsContinuousIntegration())
         {
@@ -132,7 +152,7 @@ internal static class Program
         try
         {
             CommandApp fallback = provider.GetRequiredService<CommandApp>();
-            return await provider.GetRequiredService<V8CommandRouter>()
+            return await provider.GetRequiredService<V9CommandRouter>()
                 .RunAsync(cleanArgs, fallback, cancellation.Token);
         }
         catch (OperationCanceledException)
@@ -144,6 +164,11 @@ internal static class Program
         {
             Console.Error.WriteLine($"Ошибка аргументов: {exception.Message}");
             return 2;
+        }
+        catch (InvalidDataException exception)
+        {
+            Console.Error.WriteLine($"Ошибка данных: {exception.Message}");
+            return 9;
         }
         catch (UnauthorizedAccessException exception)
         {
