@@ -4,20 +4,33 @@
 
 # 🇷🇺 Русская документация SysDiff
 
-**Основной [`README.md`](README.md) полностью написан на русском и описывает актуальную версию 0.8.0.**
+**Основной [`README.md`](README.md) полностью написан на русском и описывает актуальную версию 0.9.0.**
 
 </div>
 
-## 🧩 Главное изменение 0.8.0
+## 🗃️ Главное изменение 0.9.0
 
-SysDiff получил **Compatibility Center** для проверки `.sdshot` до импорта:
+SysDiff получил **Migration Lab** для безопасных изменений локальной SQLite-базы:
 
-- format/schema compatibility matrix;
-- read-only inspection без записи в SQLite;
-- JSON-вывод для CI;
-- статусы compatible/newer/legacy/invalid;
-- SHA-256, ZIP path и duplicate entry validation;
-- отказ от частичного импорта более новой схемы.
+- read-only status и dry-run plan;
+- явное применение только после `--yes`;
+- SQLite-consistent backup;
+- transaction rollback;
+- история migrations и запусков;
+- `PRAGMA user_version` guard;
+- отказ от базы из более новой версии;
+- JSON-вывод для CI.
+
+```powershell
+sysdiff migration status
+sysdiff migration plan
+sysdiff migration history
+sysdiff migration apply --yes
+```
+
+Существующая база не мигрируется при обычном запуске. Подробнее: [docs/MIGRATIONS.md](docs/MIGRATIONS.md).
+
+## 🧩 Compatibility Center
 
 ```powershell
 sysdiff compatibility status
@@ -25,7 +38,7 @@ sysdiff compatibility inspect .\before.sdshot
 sysdiff compatibility inspect .\before.sdshot --json
 ```
 
-Подробнее: [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
+Inspection проверяет `.sdshot` без записи в SQLite и не импортирует более новую схему частично.
 
 ## 🔄 Release Channel
 
@@ -63,6 +76,7 @@ sysdiff
 ## 📚 Разделы
 
 - [Главная страница](README.md)
+- [Migration Lab](docs/MIGRATIONS.md)
 - [Совместимость](docs/COMPATIBILITY.md)
 - [Обновления и Release Channel](docs/UPDATES.md)
 - [Drift Operations](docs/DRIFT_OPERATIONS.md)
@@ -79,4 +93,4 @@ sysdiff
 - [История изменений](CHANGELOG.md)
 
 > [!IMPORTANT]
-> SysDiff не является антивирусом. Версия 0.8.0 пока не имеет Authenticode-подписи; это явно указано в release manifest через `unsigned: true`.
+> SysDiff не является антивирусом. Версия 0.9.0 пока не имеет Authenticode-подписи; это явно указано в release manifest через `unsigned: true`.
