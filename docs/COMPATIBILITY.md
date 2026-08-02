@@ -1,151 +1,120 @@
-# 🧩 Совместимость SysDiff
+# 🧩 Совместимость SysDiff 0.10.0
 
-SysDiff 0.9.0 объединяет две независимые линии защиты данных:
+SysDiff использует три независимых уровня защиты данных:
 
-- **Compatibility Center** проверяет переносимые `.sdshot` до импорта;
-- **Migration Lab** проверяет и обновляет локальную SQLite-базу.
+- **Schema Contract Center** проверяет JSON shape и semantics;
+- **Compatibility Center** проверяет `.sdshot` container и reader range;
+- **Migration Lab** проверяет и обновляет SQLite database.
 
-> Текущие внутренние schema versions ещё не объявлены stable public schema 1.0. SysDiff фиксирует reader behavior, блокирует unknown/newer data и требует явного migration path.
-
-## Переносимые снимки
+## Команды
 
 ```powershell
-sysdiff compatibility status
-sysdiff compatibility status --json
-sysdiff compatibility inspect .\before.sdshot
+sysdiff schema list --json
+sysdiff schema validate snapshot .\snapshot.json --json
 sysdiff compatibility inspect .\before.sdshot --json
+sysdiff migration plan --json
 ```
 
-Короткий alias:
+## Reader/writer matrix
 
-```powershell
-sysdiff compat matrix
-sysdiff compat verify .\before.sdshot
-```
+| Объект | Writer | Reader | Стабильность | Поведение |
+|---|---:|---:|---|---|
+| snapshot JSON contract | 1 | 1 | stable | additive fields accepted |
+| comparison JSON contract | 1 | 1 | stable from 0.10 | future schema rejected |
+| bundle manifest contract | 1 | 1 | stable from 0.10 | future schema rejected |
+| `.sdshot` container | 1 | 1 | supported | ZIP/hash/invariants checked |
+| SQLite `user_version` | 9 | `0..9` | internal | `>9` rejected before init |
+| release manifest | 1 | 1 | stable updater contract | official host/hash required |
 
-`inspect` выполняет только чтение. Snapshot не сохраняется в SQLite, не становится baseline и не связывается с active case.
+Public JSON schema major `1` не равен SQLite `user_version=9` и не означает product version 1.0.
 
-## Локальная база
+## Producer compatibility
 
-```powershell
-sysdiff migration status
-sysdiff migration plan
-sysdiff migration history
-sysdiff migration apply --yes
-```
+| Producer | `.sdshot` | Comparison report | Bundle manifest |
+|---|---|---|---|
+| 0.3–0.9 | readable legacy schema 1 | pre-contract | pre-contract |
+| 0.10 | stable contract v1 | stable contract v1 | stable contract v1 |
+| future, schema 1 + optional fields | readable | readable | readable |
+| future, schema >1 | `RequiresNewerSysDiff` | `RequiresNewerSysDiff` | `RequiresNewerSysDiff` |
 
-`migration status` и `plan` read-only. Existing database изменяется только после `migration apply --yes` и создания backup.
+## Schema Contract statuses
 
-## Матрица 0.9.0
+- `Valid` — required/type/format/enum checks пройдены;
+- `Invalid` — contract нарушен;
+- `RequiresNewerSysDiff` — schema version выше reader.
 
-| Объект | Текущая версия | Минимальная читаемая | Поведение |
-|---|---:|---:|---|
-| `.sdshot` container format | 1 | 1 | другие версии отклоняются |
-| snapshot JSON schema | 1 | 1 | более новая требует обновления SysDiff |
-| SQLite `PRAGMA user_version` | 9 | 0 | `>9` отклоняется до initialization |
-| migration ledger | `0.9.0-migration-lab` | `0.6.0-investigations` | unknown IDs блокируют apply |
-| release manifest | 1 | 1 | проверяется updater 0.7+ |
+Unknown additive properties разрешены. Они не должны превращать valid schema 1 document в invalid.
 
-SQLite `user_version=9` является внутренним guard и не означает stable schema 9 или schema 1.0.
+## `.sdshot` statuses
 
-## Статусы `.sdshot` inspection
+- `Compatible` — archive integrity и reader range valid;
+- `RequiresNewerSysDiff` — format/schema newer;
+- `UnsupportedLegacy` — отсутствует migration path;
+- `Invalid` — ZIP, JSON, checksum или invariants повреждены.
 
-### `Compatible`
+Inspection read-only и не сохраняет snapshot.
 
-Manifest, checksum и snapshot согласованы. Архив может быть импортирован текущей версией.
+## SQLite statuses
 
-### `RequiresNewerSysDiff`
+- `Current` — integrity и ledger актуальны;
+- `MigrationRequired` — известен safe path;
+- `RequiresNewerSysDiff` — future user_version или unknown migration ID;
+- `Invalid` — integrity/ledger inconsistent.
 
-`formatVersion` или `schemaVersion` выше поддерживаемой версии. Архив не импортируется, чтобы старый reader не потерял неизвестные данные.
+Existing database migration требует `migration apply --yes`, verified backup и transaction.
 
-### `UnsupportedLegacy`
+## SemVer и schema versioning
 
-Версия ниже минимальной читаемой и для неё нет явно реализованного migration path. SysDiff не пытается угадывать преобразование.
+### Product SemVer
 
-### `Invalid`
+- patch: bug fix без изменения public contract;
+- minor: additive feature, optional property или новый independent contract;
+- major: несовместимое product/API behavior.
 
-Архив повреждён или нарушает инварианты: неправильный ZIP path, отсутствующая или дублирующаяся запись, неверный SHA-256, неизвестный format identifier, несовпадающий Snapshot ID или schema version.
+### Schema SemVer
 
-## Статусы SQLite
+Public schema использует integer major:
 
-### `Current`
+- optional additive property остаётся schema `1`;
+- required/type/casing/meaning change требует schema `2`;
+- schema `2` обязана иметь отдельный `$id`, fixtures и migration guide.
 
-`quick_check` успешен, `user_version` поддерживается, все известные migrations применены.
+## Deprecation
 
-### `MigrationRequired`
+- stable field не удаляется без previous feature-release notice;
+- deprecated optional field остаётся readable до следующей schema major;
+- old reader не импортирует newer document частично;
+- прекращение поддержки schema major требует migration guide или explicit `UnsupportedLegacy`.
 
-Существует последовательный известный путь. Пользователь может изучить dry-run plan и явно применить его.
+## CI guarantees
 
-### `RequiresNewerSysDiff`
+CI проверяет:
 
-`user_version` выше поддерживаемого или ledger содержит неизвестный migration ID. Текущая версия не изменяет базу.
-
-### `Invalid`
-
-Нарушена целостность либо ledger и `user_version` противоречат друг другу.
-
-## Что проверяет `.sdshot` inspection
-
-1. file/archive size limits;
-2. количество ZIP entries;
-3. каждый entry path;
-4. единственные обязательные entries;
-5. uncompressed size;
-6. точные SHA-256 строки;
-7. JSON parsing;
-8. format identifier;
-9. Snapshot ID;
-10. schema version между manifest и payload;
-11. поддерживаемый reader range.
-
-## Что проверяет migration plan
-
-1. `PRAGMA quick_check`;
-2. `PRAGMA user_version`;
-3. существование `app_migrations`;
-4. известные и неизвестные IDs;
-5. pending definitions;
-6. destructive и backup flags;
-7. возможность безопасного apply.
-
-## Машинный вывод `.sdshot`
-
-```json
-{
-  "archivePath": "C:\\cases\\before.sdshot",
-  "status": "Compatible",
-  "format": "SysDiff Snapshot",
-  "formatVersion": 1,
-  "schemaVersion": 1,
-  "producerVersion": "0.9.0",
-  "checksumsValid": true,
-  "canImport": true,
-  "warnings": []
-}
-```
-
-## Политика развития схемы
-
-- optional additive JSON fields допускаются только при сохранении поведения старого reader;
-- обязательное новое поле требует новой schema version;
-- reader никогда не сохраняет частично прочитанный newer snapshot;
-- database migration должна быть последовательной, идемпотентной и транзакционной;
-- existing database migration обязана создавать проверенный backup;
-- unknown migration ID и future user_version не игнорируются;
-- breaking change требует новой major version публичной схемы и upgrade guide;
-- golden fixtures stable schema должны проверяться в CI.
+- embedded schemas и Draft 2020-12 metadata;
+- golden fixtures всех public contracts;
+- unknown extension fields;
+- missing required field;
+- invalid enum;
+- future schema rejection;
+- package copies schemas/fixtures;
+- release smoke через self-contained EXE.
 
 ## Recovery
 
-Для повреждённого `.sdshot` сохраните исходник, проверьте SHA-256 и повторно экспортируйте snapshot на исходной машине.
+### Invalid JSON contract
 
-Для проблем SQLite:
+1. сохраните оригинал;
+2. запустите validation с `--json`;
+3. используйте `issues[].path` и `issues[].code`;
+4. исправляйте только копию;
+5. не понижайте schema version вручную.
 
-1. полностью закройте SysDiff;
-2. сохраните текущую базу отдельно;
-3. восстановите последний backup из `backups\migrations`;
-4. запустите `sysdiff migration status`;
-5. убедитесь в `Integrity: ok`;
-6. повторно изучите `migration plan`.
+### Invalid `.sdshot`
 
-Подробнее: [MIGRATIONS.md](MIGRATIONS.md).
+Проверьте SHA-256 источника и повторно экспортируйте snapshot. Не импортируйте извлечённый `snapshot.json` как доверенный объект в обход container checks.
+
+### SQLite problem
+
+Закройте SysDiff, сохраните database, восстановите verified backup из `backups\migrations`, затем выполните `migration status` и `migration plan`.
+
+Подробнее: [SCHEMA_CONTRACT.md](SCHEMA_CONTRACT.md) и [MIGRATIONS.md](MIGRATIONS.md).
